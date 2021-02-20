@@ -1,0 +1,1 @@
+def identity(arg) = arg
