@@ -72,12 +72,12 @@ object Scoped:
       fa.run(localState)
     }
 
-trait Runner[F[_]]:
+trait Interpreter[F[_]]:
   def run(program: Expr[Id]): F[Unit]
 
-object Runner:
-  def apply[F[_]](using Runner[F]): Runner[F] = summon
-  def instance[F[_]: Scoped.Of[Scope]: Monad]: Runner[F] = new Runner[F]:
+object Interpreter:
+  def apply[F[_]](using Interpreter[F]): Interpreter[F] = summon
+  def instance[F[_]: Scoped.Of[Scope]: Monad]: Interpreter[F] = new Interpreter[F]:
     def run(program: Expr[Id]): F[Unit] = program match {
       case f: Expr.FunctionDef[Id] => Scoped[F, Scope].scope(_.addFunction(f))(Applicative[F].unit)
       case _ => Applicative[F].unit
@@ -88,9 +88,9 @@ enum Failure extends Exception:
 
 object Main extends IOApp.Simple:
 
-  type RunnerState[A] = StateT[IO, Scope, A]
+  type InterpreterState[A] = StateT[IO, Scope, A]
 
-  given Runner[RunnerState] = Runner.instance
+  given Interpreter[InterpreterState] = Interpreter.instance
 
   val run: IO[Unit] =
     Files[IO].readAll(Paths.get("./example.s"), 4096)
@@ -99,6 +99,6 @@ object Main extends IOApp.Simple:
       .flatMap(parser.parseAll(_).leftMap(Failure.Parsing(_)).liftTo[IO])
       .flatTap(IO.println(_))
       .flatMap { expr =>
-         Runner[StateT[IO, Scope, *]].run(expr).run(Scope.init)
+         Interpreter[StateT[IO, Scope, *]].run(expr).run(Scope.init)
       }
       .flatMap(IO.println(_))
