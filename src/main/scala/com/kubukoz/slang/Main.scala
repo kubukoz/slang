@@ -7,6 +7,7 @@ import cats._
 import cats.implicits._
 import java.nio.file.Paths
 import fs2.io.file.Files
+import cats.data.StateT
 
 case class Name(value: String)
 
@@ -48,15 +49,57 @@ val parser: Parser[Expr[Id]] = Parser.recursive { expr =>
   functionDef <+> term
 }
 
+case class Scope(functions: List[Expr.FunctionDef[Id]])
+object Scope:
+  import monocle.syntax.all._
+  import monocle.Focus.focus
+
+  val init: Scope = Scope(Nil)
+  val functions = (_: Scope).focus(_.functions)
+
+  def addFunction(function: Expr.FunctionDef[Id]) = functions(_: Scope).modify(function :: _)
+
+trait Scoped[F[_], S]:
+  def scope[A](f: S => S)(fa: F[A]): F[A]
+
+object Scoped:
+  def apply[F[_], S](using Scoped[F, S]): Scoped[F, S] = summon
+  type Of[S] = [F[_]] =>> Scoped[F, S]
+
+  given [F[_]: Monad, S]: Scoped[StateT[F, S, *], S] = new Scoped[StateT[F, S, *], S]:
+    def scope[A](f: S => S)(fa: StateT[F, S, A]): StateT[F, S, A] = StateT { state =>
+      val localState = f(state)
+
+      fa.run(localState)
+    }
+
+trait Runner[F[_]]:
+  def run(program: Expr[Id]): F[Unit]
+
+object Runner:
+  def apply[F[_]](using Runner[F]): Runner[F] = summon
+  def instance[F[_]: Scoped.Of[Scope]: Monad]: Runner[F] = new Runner[F]:
+    def run(program: Expr[Id]): F[Unit] = program match {
+      case f: Expr.FunctionDef[Id] => Scoped[F, Scope].scope(Scope.addFunction(f))(Applicative[F].unit)
+      case _ => Applicative[F].unit
+    }
 
 enum Failure extends Exception:
   case Parsing(failure: Parser.Error)
 
 object Main extends IOApp.Simple:
 
+  type RunnerState[A] = StateT[IO, Scope, A]
+
+  given Runner[RunnerState] = Runner.instance
+
   val run: IO[Unit] =
     Files[IO].readAll(Paths.get("./example.s"), 4096)
       .through(fs2.text.utf8Decode[IO])
       .compile.string
       .flatMap(parser.parseAll(_).leftMap(Failure.Parsing(_)).liftTo[IO])
+      .flatTap(IO.println(_))
+      .flatMap { expr =>
+         Runner[StateT[IO, Scope, *]].run(expr).run(Scope.init)
+      }
       .flatMap(IO.println(_))
