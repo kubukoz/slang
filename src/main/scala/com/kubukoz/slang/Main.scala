@@ -49,15 +49,14 @@ val parser: Parser[Expr[Id]] = Parser.recursive { expr =>
   functionDef <+> term
 }
 
-case class Scope(functions: List[Expr.FunctionDef[Id]])
-object Scope:
+case class Scope(functions: List[Expr.FunctionDef[Id]]):
   import monocle.syntax.all._
   import monocle.Focus.focus
 
-  val init: Scope = Scope(Nil)
-  val functions = (_: Scope).focus(_.functions)
+  def addFunction(function: Expr.FunctionDef[Id]): Scope = this.focus(_.functions).modify(function :: _)
 
-  def addFunction(function: Expr.FunctionDef[Id]) = functions(_: Scope).modify(function :: _)
+object Scope:
+  val init: Scope = Scope(Nil)
 
 trait Scoped[F[_], S]:
   def scope[A](f: S => S)(fa: F[A]): F[A]
@@ -80,7 +79,7 @@ object Runner:
   def apply[F[_]](using Runner[F]): Runner[F] = summon
   def instance[F[_]: Scoped.Of[Scope]: Monad]: Runner[F] = new Runner[F]:
     def run(program: Expr[Id]): F[Unit] = program match {
-      case f: Expr.FunctionDef[Id] => Scoped[F, Scope].scope(Scope.addFunction(f))(Applicative[F].unit)
+      case f: Expr.FunctionDef[Id] => Scoped[F, Scope].scope(_.addFunction(f))(Applicative[F].unit)
       case _ => Applicative[F].unit
     }
 
