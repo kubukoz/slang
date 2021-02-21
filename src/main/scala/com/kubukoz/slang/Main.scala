@@ -6,6 +6,8 @@ import cats.implicits._
 import java.nio.file.Paths
 import fs2.io.file.Files
 import cats.data.StateT
+import com.kubukoz.slang.parser.SourceParser
+import com.kubukoz.slang.parser.SourceFile
 
 object Main extends IOApp.Simple:
 

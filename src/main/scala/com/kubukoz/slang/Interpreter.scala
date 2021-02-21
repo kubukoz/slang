@@ -4,6 +4,7 @@ import cats.Id
 import cats.Monad
 import cats.Applicative
 import cats.data.StateT
+import com.kubukoz.slang.ast._
 
 trait Interpreter[F[_]]:
   def run(program: Expr[Id]): F[Unit]
