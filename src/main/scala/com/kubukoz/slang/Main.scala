@@ -20,10 +20,12 @@ object Main extends IOApp.Simple:
       // .repeat.metered(1.second)
       .changes
 
+  import io.circe.syntax._
   val run: IO[Unit] =
     sources.evalMap { source =>
       SourceParser.instance[IO].parse(SourceFile("example.s", source))
         .flatTap(result => IO.println("Parsed program: " ++ result.toString))
+        // .flatTap(result => IO(println(result.asJson.noSpaces)))
         .flatMap { expr =>
           IO.println("\n\nProgram output: ") *>
             Interpreter.instance[StateT[IO, Scope, *]].run(expr).runS(Scope.init)
