@@ -47,13 +47,6 @@ object parsing:
 
   val term: Parser[Expr.Term[Id]] = name.map(Expr.Term(_))
 
-  // This should be equivalent to termApply(expr).backtrack orElse term - we can test that in the future I guess
-  // (success case)
-  def terms(expr: Parser[Expr[Id]]): Parser[Expr[Id]] =
-    term.flatMap { t =>
-      (parens(expr) <* whitespace).map(Expr.TermApply(t, _)).orElse(Parser.pure(t))
-    }
-
   val argument: Parser[Expr.Argument[Id]] = name.map(Expr.Argument(_))
 
   def functionDef(expr: Parser[Expr[Id]]): Parser[Expr.FunctionDef[Id]] =
@@ -64,7 +57,12 @@ object parsing:
     ).mapN(Expr.FunctionDef[cats.Id])
 
   val singleExpression: Parser[Expr[Id]] = Parser.recursive { expr =>
-    oneOf(functionDef(expr) :: terms(expr) :: literal :: Nil)
+    val base = oneOf(functionDef(expr) :: term :: literal :: Nil)
+    val maybeApplication = parens(expr) <* whitespace
+
+    base.flatMap { b =>
+      maybeApplication.map(Expr.Apply(b, _)).orElse(Parser.pure(b))
+    }
   }
 
   val parser: Parser[Expr[Id]] =
