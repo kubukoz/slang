@@ -3,17 +3,23 @@ package com.kubukoz.slang
 import cats.Id
 import cats.Monad
 import cats.Applicative
+import cats.effect.std.Console
 import cats.data.StateT
 import com.kubukoz.slang.ast._
+import cats.implicits._
 
 trait Interpreter[F[_]]:
   def run(program: Expr[Id]): F[Unit]
 
 object Interpreter:
   def apply[F[_]](using Interpreter[F]): Interpreter[F] = summon
-  def instance[F[_]: Scoped.Of[Scope]: Monad]: Interpreter[F] = new Interpreter[F]:
+  def instance[F[_]: Scoped.Of[Scope]: Monad: Console]: Interpreter[F] = new Interpreter[F]:
     def run(program: Expr[Id]): F[Unit] = program match
       case f: Expr.FunctionDef[Id] => Scoped[F, Scope].scope(_.addFunction(f))(Applicative[F].unit)
+      // case Expr.TermApply(function, param) if =>
+
+      //   ???
+      case Expr.Block(expressions) => expressions.traverse_(run)
       case _ => Applicative[F].unit
 
 case class Scope(functions: List[Expr.FunctionDef[Id]]):

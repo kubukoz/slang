@@ -15,6 +15,7 @@ def prettyPrint(fileName: String, source: String, e: Parser.Error): String =
   def expected(s: String) = s"Expected $s"
   val explainExpectation: Expectation => String =
     case Expectation.FailWith(_, msg) => msg
+    case Expectation.OneOfStr(_, strings) => expected(s"one of (${strings.mkString("")})")
     case Expectation.InRange(_, from, to) if from == to => expected(from.toString)
     // does this even make sense?
     case Expectation.InRange(_, from, to) => expected(s"one of ($from..$to)")

@@ -18,13 +18,21 @@ object parsing:
   def token[A](a: Parser[A]): Parser[A] = a.surroundedBy(whitespace)
   val isKeyword: Name => Boolean = Set("def").compose(_.value)
 
-import parsing._
+  def parens[A](expr: Parser[A]): Parser[A] =
+    expr.between(char('('), char(')'))
 
-val singleExpression: Parser[Expr[Id]] = Parser.recursive { expr =>
+  val alpha: Parser[Char] = Parser.charIn(('a' to 'z') ++ ('A' to 'Z'))
 
-  val alpha = Parser.charIn(('a' to 'z') ++ ('A' to 'Z'))
+  // Yes, the only literal is 42
+  val number: Parser[Expr.Literal[Id]] = {
+    val fortyTwo: Parser[42] = Parser.string("42").as(42)
 
-  val name = token {
+    fortyTwo.map(Literal.Number(_)).map(Expr.Literal(_))
+  }
+
+  val literal: Parser[Expr.Literal[Id]] = token(number)
+
+  val name: Parser[Name] = token {
     def mk(head: Char, tail: List[Char]) = Name(head.toString ++ tail.mkString)
 
     alpha.flatMap { h =>
@@ -39,29 +47,35 @@ val singleExpression: Parser[Expr[Id]] = Parser.recursive { expr =>
 
   val term: Parser[Expr.Term[Id]] = name.map(Expr.Term(_))
 
+  // This should be equivalent to termApply(expr).backtrack orElse term - we can test that in the future I guess
+  // (success case)
+  def terms(expr: Parser[Expr[Id]]): Parser[Expr[Id]] =
+    term.flatMap { t =>
+      (parens(expr) <* whitespace).map(Expr.TermApply(t, _)).orElse(Parser.pure(t))
+    }
+
   val argument: Parser[Expr.Argument[Id]] = name.map(Expr.Argument(_))
 
-  val termApply: Parser[Expr.TermApply[Id]] =
-    (term, argument.between(char('('), char(')'))).mapN(Expr.TermApply.apply)
-
-  val functionDef: Parser[Expr.FunctionDef[Id]] =
-    token(string("def ")) *> (
-      name,
-      argument.between(char('('), char(')')),
+  def functionDef(expr: Parser[Expr[Id]]): Parser[Expr.FunctionDef[Id]] =
+    (
+      token(string("def ")) *> name,
+      parens(argument),
       token(char('=')) *> expr
     ).mapN(Expr.FunctionDef[cats.Id])
 
-  oneOf(functionDef :: termApply :: term :: Nil)
-}
-
-val parser: Parser[Expr[Id]] =
-  singleExpression.rep.map {
-    case NonEmptyList(one, Nil) => one
-    case more =>
-      // implicit block
-      Expr.Block(more)
+  val singleExpression: Parser[Expr[Id]] = Parser.recursive { expr =>
+    oneOf(functionDef(expr) :: terms(expr) :: literal :: Nil)
   }
 
+  val parser: Parser[Expr[Id]] =
+    singleExpression.rep.map {
+      case NonEmptyList(one, Nil) => one
+      case more =>
+        // implicit block
+        Expr.Block(more)
+    }
+
+end parsing
 
 enum Failure extends Exception:
   case Parsing(failure: Parser.Error)
@@ -77,6 +91,6 @@ object SourceParser:
 
   def instance[F[_]: Console](using MonadError[F, Throwable]): SourceParser[F] =
     case SourceFile(fileName, source) =>
-      parser.parseAll(source) match
+      parsing.parser.parseAll(source) match
         case Left(e) => Console[F].errorln(prettyPrint(fileName, source, e)) *> Failure.Parsing(e).raiseError
         case Right(v) => v.pure[F]
