@@ -38,6 +38,21 @@ in a way that creates a new symbol backed by the function's implementation.
 This hasn't been tested yet, of course, but if it turns out to be possible, it would allow mixing compile-time code with normal code seamlessly.
 First we need to have typechecking though.
 
+### First-class effects
+
+Currently this is a lie - there's println / currentTime that would break referential transparency... if we had references.
+
+I think the former will become a `trace` utility that'll be the only exception to the rule of total purity,
+but for now it's a means of having programs with any output at all.
+
+The exact way effects will be implemented is still to be figured out, but I imagine it'll be either monadic (built-in `IO[A]` in the language, implemented as a special effect)
+or algebraic effects with the `IO` effect in the standard.
+
+### Minimal "standard" library
+
+It should only have built-in types (primitives) really. Everything else - collections, system utilities etc., should be separate libraries,
+so that everyone will be able to write their own libraries without the quite vast lexical scope that we see in some languages.
+
 ### Full type inference
 
 I want the language to have full type inference, think Haskell / Hindley-Milner. Might just implement the HM type system, might try something else.
