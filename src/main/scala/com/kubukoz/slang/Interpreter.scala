@@ -3,6 +3,7 @@ package com.kubukoz.slang
 import cats.Id
 import cats.Monad
 import cats.Applicative
+import cats.effect.Clock
 import cats.effect.std.Console
 import cats.data.StateT
 import com.kubukoz.slang.ast._
@@ -13,12 +14,21 @@ trait Interpreter[F[_]]:
 
 object Interpreter:
   def apply[F[_]](using Interpreter[F]): Interpreter[F] = summon
-  def instance[F[_]: Scoped.Of[Scope]: Monad: Console]: Interpreter[F] = new Interpreter[F]:
+  def instance[F[_]: Scoped.Of[Scope]: Monad: Console: Clock]: Interpreter[F] = new Interpreter[F]:
     def run(program: Expr[Id]): F[Unit] = program match
       case f: Expr.FunctionDef[Id] => Scoped[F, Scope].scope(_.addFunction(f))(Applicative[F].unit)
-      // case Expr.TermApply(function, param) if =>
+      case Expr.Apply(function, param) =>
+        function match {
+          case Expr.Term(Name("println")) =>
+            def evalParam(e: Expr[Id]): F[Any] = e match
+              case Expr.Literal(Literal.Number(num)) => num.pure[F]
+              case Expr.Apply(Expr.Term(Name("addOne")), e) => evalParam(e).map(_.asInstanceOf[Int] + 1)
+              case Expr.Term(Name("currentTime")) => Clock[F].realTimeInstant.widen
+              case e => throw new Exception("I can't do this yet: " + e)
 
-      //   ???
+            evalParam(param).flatMap(Console[F].println(_))
+          case e => Applicative[F].unit
+        }
       case Expr.Block(expressions) => expressions.traverse_(run)
       case _ => Applicative[F].unit
 

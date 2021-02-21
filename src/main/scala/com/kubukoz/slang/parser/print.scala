@@ -8,18 +8,19 @@ import cats.data.NonEmptyList
 import cats.syntax.all._
 
 def prettyPrint(fileName: String, source: String, e: Parser.Error): String =
-  def colorize(color: String)(text: String) = text.linesWithSeparators.map(color ++ _).mkString
+  //uber hack - apparently reset doesn't work after a newline... so we're printing the newline after resetting.
+  def colorize(color: String)(text: String) = text.linesWithSeparators.map(s => color ++ s.dropRight(1) ++ Console.RESET ++ s.takeRight(1)).mkString
 
-  val (codeBefore, codeAfter) = source.splitAt(e.failedAtOffset).bimap(colorize(scala.Console.GREEN), colorize(scala.Console.RED))
+  val (codeBefore, codeAfter) = source.splitAt(e.failedAtOffset).bimap(colorize(Console.GREEN), colorize(Console.RED))
 
-  def expected(s: String) = s"Expected $s"
+  def expected(s: String) = s"Expected $s."
   val explainExpectation: Expectation => String =
     case Expectation.FailWith(_, msg) => msg
-    case Expectation.OneOfStr(_, strings) => expected(s"one of (${strings.mkString("")})")
+    case Expectation.OneOfStr(_, List(one)) => expected(one)
+    case Expectation.OneOfStr(_, strings) => expected(s"one of [${strings.mkString(", ")}]")
     case Expectation.InRange(_, from, to) if from == to => expected(from.toString)
-    // does this even make sense?
-    case Expectation.InRange(_, from, to) => expected(s"one of ($from..$to)")
-    case Expectation.EndOfString(_, _) => expected(s"end of file")
+    case Expectation.InRange(_, from, to) => expected(s"a character from range [$from..$to]")
+    case Expectation.EndOfString(_, _) => expected(s"end of file.")
     case e => e.toString ++ " (unsupported failure)"
 
   val failureString = e.expected match
@@ -31,15 +32,16 @@ def prettyPrint(fileName: String, source: String, e: Parser.Error): String =
       case (line, column) => s"""line $line, column $column""".stripMargin
     }
 
-  val totalLines = source.linesIterator.size
+  // Counting last empty line
+  val totalLines = source.linesWithSeparators.size + 1
   val lineCountLength = Math.log10(totalLines).toInt + 1
   val allCode = s"""$codeBefore😡 $codeAfter""".linesWithSeparators.zipWithIndex.map {
     case (line, index) => s"""%${lineCountLength}d | $line""".format(index + 1)
   }.mkString
 
   s"""${"😭" * 10}
-      |Unexpected parsing error in file ${scala.Console.MAGENTA}$fileName${scala.Console.RESET} at $location:
-      |${scala.Console.RED}$failureString${scala.Console.RESET}
+      |Unexpected parsing error in file ${Console.MAGENTA}$fileName${Console.RESET} at $location:
+      |${Console.RED}$failureString${Console.RESET}
       |
       |Context:
       |$allCode""".stripMargin

@@ -1,5 +1,6 @@
 package com.kubukoz.slang.parser
 
+import com.kubukoz.slang.Failure
 import cats.effect.std.Console
 import cats.parse.Parser
 import cats.parse.Numbers
@@ -14,7 +15,8 @@ import com.kubukoz.slang.ast._
 import Parser._
 
 object parsing:
-  val whitespace = Parser.charIn(" \t\r\n").rep0.void
+  val whitespaceChar = Parser.charIn(" \t\r\n")
+  val whitespace = whitespaceChar.rep0.void
   def token[A](a: Parser[A]): Parser[A] = a.surroundedBy(whitespace)
   val isKeyword: Name => Boolean = Set("def").compose(_.value)
 
@@ -23,26 +25,24 @@ object parsing:
 
   val alpha: Parser[Char] = Parser.charIn(('a' to 'z') ++ ('A' to 'Z'))
 
-  // Yes, the only literal is 42
-  val number: Parser[Expr.Literal[Id]] = {
+  val number: Parser[Literal.Number] = {
+    // Yes, the only literal is 42
     val fortyTwo: Parser[42] = Parser.string("42").as(42)
 
-    fortyTwo.map(Literal.Number(_)).map(Expr.Literal(_))
+    fortyTwo.map(Literal.Number(_))
   }
 
-  val literal: Parser[Expr.Literal[Id]] = token(number)
+  val literal: Parser[Expr.Literal[Id]] = token(number.map(Expr.Literal(_)))
 
   val name: Parser[Name] = token {
     def mk(head: Char, tail: List[Char]) = Name(head.toString ++ tail.mkString)
 
-    alpha.flatMap { h =>
-      alpha.orElse(Numbers.digit)
-        .rep0
-        .map(mk(h,_))
-    }.flatMap {
-      case kw if isKeyword(kw) => Parser.failWith(s"Illegal name: ${"\""}${kw.value}${"\""} is a keyword")
-      case n => Parser.pure(n)
-    }
+    (alpha ~ alpha.orElse(Numbers.digit).rep0)
+      .map(mk.tupled)
+      .flatMap {
+        case kw if isKeyword(kw) => Parser.failWith(s"Illegal name: ${"\""}${kw.value}${"\""} is a keyword")
+        case n => Parser.pure(n)
+      }
   }
 
   val term: Parser[Expr.Term[Id]] = name.map(Expr.Term(_))
@@ -51,17 +51,23 @@ object parsing:
 
   def functionDef(expr: Parser[Expr[Id]]): Parser[Expr.FunctionDef[Id]] =
     (
-      token(string("def ")) *> name,
+      token(string("def") *> whitespaceChar) *> name,
       parens(argument),
       token(char('=')) *> expr
     ).mapN(Expr.FunctionDef[cats.Id])
 
   val singleExpression: Parser[Expr[Id]] = Parser.recursive { expr =>
-    val base = oneOf(functionDef(expr) :: term :: literal :: Nil)
-    val maybeApplication = parens(expr) <* whitespace
+    val base = oneOf(
+      functionDef(expr) ::
+        term ::
+        literal ::
+        Nil
+    )
+
+    val maybeArgs = parens(/* whitespace.with1 *>  */expr) <* whitespace
 
     base.flatMap { b =>
-      maybeApplication.map(Expr.Apply(b, _)).orElse(Parser.pure(b))
+      maybeArgs.map(Expr.Apply(b, _)).orElse(Parser.pure(b))
     }
   }
 
@@ -75,9 +81,6 @@ object parsing:
 
 end parsing
 
-enum Failure extends Exception:
-  case Parsing(failure: Parser.Error)
-
 case class SourceFile(name: String, code: String)
 
 trait SourceParser[F[_]]:
@@ -89,6 +92,4 @@ object SourceParser:
 
   def instance[F[_]: Console](using MonadError[F, Throwable]): SourceParser[F] =
     case SourceFile(fileName, source) =>
-      parsing.parser.parseAll(source) match
-        case Left(e) => Console[F].errorln(prettyPrint(fileName, source, e)) *> Failure.Parsing(e).raiseError
-        case Right(v) => v.pure[F]
+      parsing.parser.parseAll(source).leftMap(Failure.Parsing(_)).liftTo[F]

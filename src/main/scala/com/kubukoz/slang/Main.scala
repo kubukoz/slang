@@ -11,14 +11,25 @@ import com.kubukoz.slang.parser.SourceFile
 
 object Main extends IOApp.Simple:
 
+  val clear = "\u001b[2J\u001b[H"
+  val p = Paths.get("./example.s")
+
+  import scala.concurrent.duration._
+  val sources =
+    fs2.Stream.eval(Files[IO].readAll(p, 4096).through(fs2.text.utf8Decode[IO]).compile.string)
+      // .repeat.metered(1.second)
+      .changes
+
   val run: IO[Unit] =
-    Files[IO].readAll(Paths.get("./example.s"), 4096)
-      .through(fs2.text.utf8Decode[IO])
-      .compile.string
-      .map(SourceFile("example.s", _))
-      .flatMap(SourceParser.instance[IO].parse(_))
-      .flatTap(IO.println(_))
-      .flatMap { expr =>
-         Interpreter.instance[StateT[IO, Scope, *]].run(expr).run(Scope.init)
-      }
-      .flatMap(IO.println(_))
+    sources.evalMap { source =>
+      SourceParser.instance[IO].parse(SourceFile("example.s", source))
+        .flatTap(result => IO.println(s"${clear}\nParsed program: " ++ result.toString))
+        .flatMap { expr =>
+          IO.println("\n\nProgram output: ") *>
+            Interpreter.instance[StateT[IO, Scope, *]].run(expr).runS(Scope.init)
+        }
+        .flatMap(result => IO.println("\n\nFinal scope: " ++ result.toString))
+        .handleErrorWith {
+          case Failure.Parsing(t) => IO.println(parser.prettyPrint("example.s", source, t))
+        }
+    }.compile.drain
