@@ -13,7 +13,8 @@ object Main extends IOApp.Simple:
     Files[IO].readAll(Paths.get("./example.s"), 4096)
       .through(fs2.text.utf8Decode[IO])
       .compile.string
-      .flatMap(SourceParser.instance[IO].parse("example.s", _))
+      .map(SourceFile("example.s", _))
+      .flatMap(SourceParser.instance[IO].parse(_))
       .flatTap(IO.println(_))
       .flatMap { expr =>
          Interpreter.instance[StateT[IO, Scope, *]].run(expr).run(Scope.init)

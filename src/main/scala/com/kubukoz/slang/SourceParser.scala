@@ -73,9 +73,11 @@ val parser: Parser[Expr[Id]] =
 enum Failure extends Exception:
   case Parsing(failure: Parser.Error)
 
+case class SourceFile(name: String, code: String)
+
 trait SourceParser[F[_]]:
   // Parse a single file to an expression
-  def parse(fileName: String, source: String): F[Expr[Id]]
+  def parse(file: SourceFile): F[Expr[Id]]
 
 object SourceParser:
   def apply[F[_]](using SourceParser[F]): SourceParser[F] = summon
@@ -117,7 +119,8 @@ object SourceParser:
        |$allCode""".stripMargin
   end prettyPrint
 
-  def instance[F[_]: Console](using MonadError[F, Throwable]): SourceParser[F] = (fileName, source) =>
-    parser.parseAll(source) match
-      case Left(e) => Console[F].errorln(prettyPrint(fileName, source, e)) *> Failure.Parsing(e).raiseError
-      case Right(v) => v.pure[F]
+  def instance[F[_]: Console](using MonadError[F, Throwable]): SourceParser[F] =
+    case SourceFile(fileName, source) =>
+      parser.parseAll(source) match
+        case Left(e) => Console[F].errorln(prettyPrint(fileName, source, e)) *> Failure.Parsing(e).raiseError
+        case Right(v) => v.pure[F]
