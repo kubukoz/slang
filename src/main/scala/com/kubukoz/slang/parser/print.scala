@@ -20,12 +20,12 @@ def prettyPrint(fileName: String, source: String, e: Parser.Error): String =
     case Expectation.OneOfStr(_, strings) => expected(s"one of [${strings.mkString(", ")}]")
     case Expectation.InRange(_, from, to) if from == to => expected(from.toString)
     case Expectation.InRange(_, from, to) => expected(s"a character from range [$from..$to]")
-    case Expectation.EndOfString(_, _) => expected(s"end of file.")
+    case Expectation.EndOfString(_, _) => expected(s"end of file")
     case e => e.toString ++ " (unsupported failure)"
 
   val failureString = e.expected match
     case NonEmptyList(one, Nil) => explainExpectation(one)
-    case more => "one of: " ++ more.map(explainExpectation).mkString_(", ")
+    case more => "Failed expectations:\n" ++ more.map(s => "- " ++ explainExpectation(s)).mkString_("\n")
 
     val lm = LocationMap(source)
     val location = lm.toLineCol(e.failedAtOffset).fold(s"offset ${e.failedAtOffset}") {

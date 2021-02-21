@@ -58,13 +58,13 @@ object parsing:
 
   val singleExpression: Parser[Expr[Id]] = Parser.recursive { expr =>
     val base = oneOf(
-      functionDef(expr) ::
+      (functionDef(expr) ::
         term ::
         literal ::
-        Nil
+        Nil).map(_.backtrack)
     )
 
-    val maybeArgs = parens(/* whitespace.with1 *>  */expr) <* whitespace
+    val maybeArgs = parens(expr) <* whitespace
 
     base.flatMap { b =>
       maybeArgs.map(Expr.Apply(b, _)).orElse(Parser.pure(b))

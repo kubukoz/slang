@@ -23,7 +23,7 @@ object Main extends IOApp.Simple:
   val run: IO[Unit] =
     sources.evalMap { source =>
       SourceParser.instance[IO].parse(SourceFile("example.s", source))
-        .flatTap(result => IO.println(s"${clear}\nParsed program: " ++ result.toString))
+        .flatTap(result => IO.println("Parsed program: " ++ result.toString))
         .flatMap { expr =>
           IO.println("\n\nProgram output: ") *>
             Interpreter.instance[StateT[IO, Scope, *]].run(expr).runS(Scope.init)

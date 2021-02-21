@@ -1,6 +1,7 @@
 def identity(arg) = arg
 
-def soMuchFun(arg) = identity(arg)
+def soMuchFun0(arg) = def foo(a) = a
+def soMuchFun(arg) = identity ( arg )
 
 def evenMoreFun(arg) = soMuchFun ( soMuchFun ( arg))
 

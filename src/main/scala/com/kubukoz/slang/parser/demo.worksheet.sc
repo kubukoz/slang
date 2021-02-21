@@ -9,6 +9,10 @@ parser.parseAll(
 )
 
 parser.parseAll(
+  "def soMuchFun0(arg) = def foo(a) = a"
+)
+
+parser.parseAll(
   "def identity(arg) = identity(arg)"
 )
 
