@@ -11,7 +11,10 @@ import cats.Id
 object ParserTests extends SimpleIOSuite {
   import parsing.parser.{parseAll => parse}
 
-  // SourceParser
+  // might be unused, but keep it there as a utility
+  def parsePretty(text: String): Either[String, Expr[Id]] =
+    parse(text).leftMap(prettyPrint("test-data", text, _))
+
   def simpleParserTest(text: String)(result: Either[Failure.Parsing, Expr[Id]])(implicit loc: SourceLocation) =
     pureTest(text) {
       assert(parse(text) == result)
@@ -45,6 +48,38 @@ object ParserTests extends SimpleIOSuite {
         )
       )
     } || succeed("not implemented yet")
+  }
+
+  pureTest("currying: hello(foo)(bar)") {
+    assert {
+      parse("hello(foo)(bar)") == Right(
+        Apply[Id](
+          Apply[Id](
+            Term(Name("hello")),
+            Term(Name("foo"))
+          ),
+          Term(Name("bar"))
+        )
+      )
+    }
+  }
+
+  //local definition expression (bar is local to foo)
+  simpleParserTest("def foo(arg) = def bar(a) = arg(a)") {
+    Right(
+      FunctionDef(
+        Name("foo"),
+        Argument(Name("arg")),
+        FunctionDef(
+          Name("bar"),
+          Argument(Name("a")),
+          Apply(
+            Term(Name("arg")),
+            Term(Name("a"))
+          )
+        )
+      )
+    )
   }
 
   simpleParserTest("def demo( fun ) = fun") {
@@ -123,20 +158,20 @@ object ParserTests extends SimpleIOSuite {
   }
 
   //this is a very poor test, but it's better than running the program every time the example changes
-  pureTest("can parse example"){
+  pureTest("can parse example") {
+    val src = """def identity(arg) = arg
+        |
+        |def soMuchFun0(arg) = def foo(a) = a
+        |def soMuchFun(arg) = identity ( arg )
+        |
+        |def evenMoreFun(arg) = soMuchFun ( soMuchFun ( arg))
+        |
+        |println ( addOne(addOne(addOne(addOne ( 42)))) )
+        |
+        |println(currentTime)""".stripMargin
+
     assert {
-      parse(
-        """def identity(arg) = arg
-          |
-          |def soMuchFun0(arg) = def foo(a) = a
-          |def soMuchFun(arg) = identity ( arg )
-          |
-          |def evenMoreFun(arg) = soMuchFun ( soMuchFun ( arg))
-          |
-          |println ( addOne(addOne(addOne(addOne ( 42)))) )
-          |
-          |println(currentTime)""".stripMargin
-      ).isRight
+      parse(src).isRight
     }
   }
 }

@@ -1,7 +1,6 @@
 package com.kubukoz.slang.parser
 
 import com.kubukoz.slang.Failure
-import cats.effect.std.Console
 import cats.parse.Parser
 import cats.parse.Numbers
 import cats.parse.LocationMap
@@ -15,13 +14,15 @@ import com.kubukoz.slang.ast._
 import Parser._
 
 object parsing:
-  val whitespaceChar = Parser.charIn(" \t\r\n")
+  val anyWhitespace = Parser.charIn(" \n\r\t").rep0
+  //todo naming of these white parsers
+  val whitespaceChar = Parser.charIn(" \t")
   val whitespace = whitespaceChar.rep0.void
   def token[A](a: Parser[A]): Parser[A] = a.surroundedBy(whitespace)
   val isKeyword: Name => Boolean = Set("def").compose(_.value)
 
   def parens[A](expr: Parser[A]): Parser[A] =
-    expr.between(char('('), char(')'))
+    expr.between(token(char('(')), token(char(')')))
 
   val alpha: Parser[Char] = Parser.charIn(('a' to 'z') ++ ('A' to 'Z'))
 
@@ -56,32 +57,38 @@ object parsing:
       token(char('=')) *> expr
     ).mapN(Expr.FunctionDef[cats.Id])
 
+  def applies[E <: Expr[Id]](
+    base: Parser[E],
+    expr: Parser[Expr[Id]]
+  ): Parser[E | Expr.Apply[Id]] =
+    (base ~ parens(expr).rep0).map {
+      case (b, Nil) =>
+        b
+      case (b, first :: more) =>
+        val base: Expr.Apply[Id] = Expr.Apply(b, first)
+
+        more.foldLeft(base)(Expr.Apply(_, _))
+    }
+
   val singleExpression: Parser[Expr[Id]] = Parser.recursive { expr =>
-    val base = oneOf(
-      functionDef(expr).backtrack ::
-        term.backtrack ::
+    oneOf(
+      functionDef(expr) ::
+        applies(term, expr) ::
         literal ::
         Nil
     )
-
-
-    // I don't like having this whitespace here...
-    // todo: currying
-    (base ~ (parens(expr) <* whitespace).backtrack.?).map {
-      case (b, None) =>
-        b
-      case (b, Some(c)) =>
-        Expr.Apply(b, c)
-    }
   }
 
   val parser: Parser[Expr[Id]] =
-    singleExpression.rep.map {
-      case NonEmptyList(one, Nil) => one
-      case more =>
-        // implicit block
-        Expr.Block(more)
-    }
+    singleExpression
+      .repSep(sep = charIn("\n;").rep)
+      .surroundedBy(anyWhitespace) //trailing newlines etc.
+      .map {
+        case NonEmptyList(one, Nil) => one
+        case more =>
+          // implicit block
+          Expr.Block(more)
+      }
 
 end parsing
 
@@ -94,6 +101,6 @@ trait SourceParser[F[_]]:
 object SourceParser:
   def apply[F[_]](using SourceParser[F]): SourceParser[F] = summon
 
-  def instance[F[_]: Console](using MonadError[F, Throwable]): SourceParser[F] =
+  def instance[F[_]](using MonadError[F, Throwable]): SourceParser[F] =
     case SourceFile(fileName, source) =>
       parsing.parser.parseAll(source).leftMap(Failure.Parsing(_)).liftTo[F]
