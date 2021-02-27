@@ -25,6 +25,7 @@ object Main extends IOApp.Simple:
     sources.evalMap { source =>
       SourceParser.instance[IO].parse(SourceFile("example.s", source))
         .flatTap(result => IO.println("Parsed program: " ++ result.toString))
+        .flatMap(qualifier.qualify(_))
         // .flatTap(result => IO(println(result.asJson.noSpaces)))
         .flatMap { expr =>
           IO.println("\n\nProgram output: ") *>

@@ -8,6 +8,7 @@ import cats.effect.std.Console
 import cats.data.StateT
 import com.kubukoz.slang.ast._
 import cats.implicits._
+import com.kubukoz.slang.qualifier.Scoped
 
 trait Interpreter[F[_]]:
   def run(program: Expr[Id]): F[Unit]
@@ -39,17 +40,3 @@ case class Scope(functions: List[Expr.FunctionDef[Id]]):
 
 object Scope:
   val init: Scope = Scope(Nil)
-
-trait Scoped[F[_], S]:
-  def scope[A](f: S => S)(fa: F[A]): F[A]
-
-object Scoped:
-  def apply[F[_], S](using Scoped[F, S]): Scoped[F, S] = summon
-  type Of[S] = [F[_]] =>> Scoped[F, S]
-
-  given [F[_]: Monad, S]: Scoped[StateT[F, S, *], S] = new Scoped[StateT[F, S, *], S]:
-    def scope[A](f: S => S)(fa: StateT[F, S, A]): StateT[F, S, A] = StateT { state =>
-      val localState = f(state)
-
-      fa.run(localState)
-    }
