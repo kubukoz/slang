@@ -13,12 +13,13 @@ enum Expr[F[_]]:
   case Literal(value: F[AstLiteral])
   case Term(name: F[Name])
   case Apply(on: Expr[F], param: Expr[F])
-  case Argument(name: F[Name])
   case Block(expressions: NonEmptyList[Expr[F]])
   case FunctionDef(name: F[Name], arg: F[Argument[F]], body: F[Expr[F]])
 
 object Expr:
   def block[F[_]](b1: Expr[F], more: Expr[F]*): Expr.Block[F] = Expr.Block(NonEmptyList(b1, more.toList))
+
+final case class Argument[F[_]](name: F[Name])
 
 enum Literal:
   case Number(value: 42)

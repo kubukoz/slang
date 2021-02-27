@@ -45,13 +45,13 @@ object QualifierTests extends SimpleIOSuite {
     simpleQualifierTest(
       Expr.FunctionDef(
         Name("identity"),
-        Expr.Argument(Name("arg")),
+        Argument(Name("arg")),
         Expr.Term(Name("arg"))
       )
     )(
       Expr.FunctionDef(
         Name("identity"),
-        Expr.Argument(Name("identity(arg)")),
+        Argument(Name("identity(arg)")),
         // todo: name as enum, in this case it would be a local function parameter
         // so syntax is like function parameters, but whaddaya know
         Expr.Term(Name("identity(arg)"))
@@ -92,12 +92,12 @@ object QualifierTests extends SimpleIOSuite {
         Expr.block(
           Expr.FunctionDef(
             Name("identity"),
-            Expr.Argument(Name("arg")),
+            Argument(Name("arg")),
             Expr.Term(Name("arg"))
           ),
           Expr.FunctionDef(
             Name("identity2"),
-            Expr.Argument(Name("arg2")),
+            Argument(Name("arg2")),
             Expr.Term(Name("arg"))
           )
         )

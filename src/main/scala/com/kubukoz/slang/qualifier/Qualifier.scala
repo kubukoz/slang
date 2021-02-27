@@ -8,13 +8,12 @@ import cats.data.Chain
 import cats.data.Kleisli
 import com.kubukoz.slang.ast._
 import cats.implicits._
-import cats.effect.std.Console
 
-def qualify[F[_]: Console](parsed: Expr[Id])(using MonadError[F, Throwable]): F[Expr[Id]] =
+def qualify[F[_]](parsed: Expr[Id])(using MonadError[F, Throwable]): F[Expr[Id]] =
   qualify0[StateT[F, Scope, *]](parsed)
     .runA(Scope.init)
 
-private def qualify0[F[_]: Console](parsed: Expr[Id])(
+private def qualify0[F[_]](parsed: Expr[Id])(
   using MonadError[F, Throwable],
   Scoped[F, Scope]
 ): F[Expr[Id]] =
@@ -43,7 +42,7 @@ private def qualify0[F[_]: Console](parsed: Expr[Id])(
 
       //todo qualify function name itself
 
-      val qualifiedArg = Expr.Argument[Id](functionQualified(argument.name)).pure[F]
+      val qualifiedArg = Argument[Id](functionQualified(argument.name)).pure[F]
       val qualifiedBodyF = recurse(body)
 
       //so what's happening here is probably
@@ -67,11 +66,6 @@ private def qualify0[F[_]: Console](parsed: Expr[Id])(
       // This is veeeeeery simplified, doesn't account for the fact that previous nodes should be able to
       // influence next blocks... and possibly vice versa! This is going to be some tough stufffffffff.
       nodes.traverse(recurse).map(Expr.Block(_))
-
-    case literallyAnythingElse =>
-      Console[F]
-        .errorln("I don't know how to qualify this node: " ++ literallyAnythingElse.toString)
-        .as(literallyAnythingElse)
 
 end qualify0
 

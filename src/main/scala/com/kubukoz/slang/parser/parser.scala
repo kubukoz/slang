@@ -48,7 +48,7 @@ object parsing:
 
   val term: Parser[Expr.Term[Id]] = name.map(Expr.Term(_))
 
-  val argument: Parser[Expr.Argument[Id]] = name.map(Expr.Argument(_))
+  val argument: Parser[Argument[Id]] = name.map(Argument(_))
 
   def functionDef(expr: Parser[Expr[Id]]): Parser[Expr.FunctionDef[Id]] =
     (
