@@ -29,7 +29,7 @@ object QualifierTests extends SimpleIOSuite {
     simpleQualifierTest(
       Expr.Term(Name("println"))
     )(
-      Expr.Term[Id](Name("<builtins>.println"))
+      Expr.Term(Name("<builtins>.println"))
     )
   }
 
