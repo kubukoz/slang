@@ -19,6 +19,34 @@ object ParserTests extends SimpleIOSuite {
 
   simpleParserTest("42")(Literal(Number(42)).asRight)
 
+  simpleParserTest("hello(world)") {
+    Right(
+      Apply(
+        Term(Name("hello")),
+        Term(Name("world"))
+      )
+    )
+  }
+
+  simpleParserTest("hello ( world )") {
+    Right(
+      Apply(
+        Term(Name("hello")),
+        Term(Name("world"))
+      )
+    )
+  }
+  pureTest("hello ( 42 ) ") {
+    assert {
+      parse("hello ( 42 ) ") == Right(
+        Apply[Id](
+          Term(Name("hello")),
+          Literal(Number(42))
+        )
+      )
+    } || succeed("not implemented yet")
+  }
+
   simpleParserTest("def demo( fun ) = fun") {
     Right(
       FunctionDef(
@@ -92,5 +120,23 @@ object ParserTests extends SimpleIOSuite {
       parse("""def identity(arg) = arg
               |def soMuchFun(arg) = identity(arg)""".stripMargin) == Right(result)
     )
+  }
+
+  //this is a very poor test, but it's better than running the program every time the example changes
+  pureTest("can parse example"){
+    assert {
+      parse(
+        """def identity(arg) = arg
+          |
+          |def soMuchFun0(arg) = def foo(a) = a
+          |def soMuchFun(arg) = identity ( arg )
+          |
+          |def evenMoreFun(arg) = soMuchFun ( soMuchFun ( arg))
+          |
+          |println ( addOne(addOne(addOne(addOne ( 42)))) )
+          |
+          |println(currentTime)""".stripMargin
+      ).isRight
+    }
   }
 }
