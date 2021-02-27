@@ -39,10 +39,16 @@ def prettyPrint(fileName: String, source: String, e: Parser.Error): String =
     case (line, index) => s"""%${lineCountLength}d | $line""".format(index + 1)
   }.mkString
 
+  def unescape(ch: Char) = Map(
+    '\n' -> "'\\n' (line feed)",
+    '\r' -> "'\\r' (carriage return)",
+    '\t' -> "'\\t' (tab)"
+  ).getOrElse(ch, s"'$ch'")
+
   s"""${"😭" * 10}
       |Unexpected parsing error in file ${Console.MAGENTA}$fileName${Console.RESET} at $location:
       |${Console.RED}$failureString${Console.RESET}
-      |Next char: '${source(e.failedAtOffset)}'
+      |Next char: ${unescape(source(e.failedAtOffset))}
       |
       |Context:
       |$allCode""".stripMargin
