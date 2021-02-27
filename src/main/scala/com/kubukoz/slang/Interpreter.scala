@@ -18,7 +18,7 @@ object Interpreter:
     def run(program: Expr[Id]): F[Unit] = program match
       case f: Expr.FunctionDef[Id] => Scoped[F, Scope].scope(_.addFunction(f))(Applicative[F].unit)
       case Expr.Apply(function, param) =>
-        function match {
+        function match
           case Expr.Term(Name("println")) =>
             def evalParam(e: Expr[Id]): F[Any] = e match
               case Expr.Literal(Literal.Number(num)) => num.pure[F]
@@ -28,7 +28,6 @@ object Interpreter:
 
             evalParam(param).flatMap(Console[F].println(_))
           case e => Applicative[F].unit
-        }
       case Expr.Block(expressions) => expressions.traverse_(run)
       case _ => Applicative[F].unit
 

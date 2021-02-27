@@ -42,6 +42,7 @@ def prettyPrint(fileName: String, source: String, e: Parser.Error): String =
   s"""${"😭" * 10}
       |Unexpected parsing error in file ${Console.MAGENTA}$fileName${Console.RESET} at $location:
       |${Console.RED}$failureString${Console.RESET}
+      |Next char: '${source(e.failedAtOffset)}'
       |
       |Context:
       |$allCode""".stripMargin

@@ -58,16 +58,20 @@ object parsing:
 
   val singleExpression: Parser[Expr[Id]] = Parser.recursive { expr =>
     val base = oneOf(
-      (functionDef(expr) ::
-        term ::
+      functionDef(expr).backtrack ::
+        term.backtrack ::
         literal ::
-        Nil).map(_.backtrack)
+        Nil
     )
 
-    val maybeArgs = parens(expr) <* whitespace
 
-    base.flatMap { b =>
-      maybeArgs.map(Expr.Apply(b, _)).orElse(Parser.pure(b))
+    // I don't like having this whitespace here...
+    // todo: currying
+    (base ~ (parens(expr) <* whitespace).backtrack.?).map {
+      case (b, None) =>
+        b
+      case (b, Some(c)) =>
+        Expr.Apply(b, c)
     }
   }
 
@@ -93,3 +97,4 @@ object SourceParser:
   def instance[F[_]: Console](using MonadError[F, Throwable]): SourceParser[F] =
     case SourceFile(fileName, source) =>
       parsing.parser.parseAll(source).leftMap(Failure.Parsing(_)).liftTo[F]
+
