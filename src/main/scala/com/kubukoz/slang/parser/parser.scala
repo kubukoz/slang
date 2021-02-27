@@ -97,4 +97,3 @@ object SourceParser:
   def instance[F[_]: Console](using MonadError[F, Throwable]): SourceParser[F] =
     case SourceFile(fileName, source) =>
       parsing.parser.parseAll(source).leftMap(Failure.Parsing(_)).liftTo[F]
-
