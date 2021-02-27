@@ -2,11 +2,15 @@ package com.kubukoz.slang.ast
 import com.kubukoz.slang.ast.{Literal => AstLiteral}
 import io.circe._
 import cats.data.NonEmptyList
+import cats.Functor
+import cats.implicits._
 
-final case class Name(value: String)
+final case class Name(value: String) extends AnyVal:
+  def traverse[F[_]: Functor](f: (value: String) => F[String]): F[Name] =
+    f(value).map(Name(_))
 
 enum Expr[F[_]]:
-  case Literal(value: AstLiteral)
+  case Literal(value: F[AstLiteral])
   case Term(name: F[Name])
   case Apply(on: Expr[F], param: Expr[F])
   case Argument(name: F[Name])
@@ -14,8 +18,7 @@ enum Expr[F[_]]:
   case FunctionDef(name: F[Name], arg: F[Argument[F]], body: F[Expr[F]])
 
 object Expr:
-  given Codec.AsObject[Expr[cats.Id]] = Codec.AsObject.derived
   def block[F[_]](b1: Expr[F], more: Expr[F]*): Expr.Block[F] = Expr.Block(NonEmptyList(b1, more.toList))
 
-enum Literal derives Codec.AsObject:
+enum Literal:
   case Number(value: 42)

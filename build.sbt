@@ -8,7 +8,6 @@ lazy val root = (project in file(".")).settings(
     "org.typelevel" %% "cats-effect" % "3.0.0-RC2",
     "co.fs2" %% "fs2-io" % "3.0.0-M9",
     "org.typelevel" %% "cats-parse" % "0.3.1",
-    "io.circe" %% "circe-core" % "0.14.0-M3",
     "com.disneystreaming" %% "weaver-cats" % "0.7.0-M6" % Test
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect")

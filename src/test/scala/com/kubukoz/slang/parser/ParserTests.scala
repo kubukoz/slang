@@ -20,7 +20,7 @@ object ParserTests extends SimpleIOSuite {
       assert(parse(text) == result)
     }
 
-  simpleParserTest("42")(Literal(Number(42)).asRight)
+  simpleParserTest("42")(Literal[Id](Number(42)).asRight)
 
   simpleParserTest("hello(world)") {
     Right(
