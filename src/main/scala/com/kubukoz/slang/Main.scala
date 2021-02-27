@@ -25,7 +25,7 @@ object Main extends IOApp.Simple:
   val run: IO[Unit] =
     sources.evalMap { source =>
       SourceParser.instance[IO].parse(SourceFile("example.s", source))
-        // .flatTap(result => IO.println("Parsed program: " ++ result.toString))
+        .flatTap(result => IO.println("Parsed program: " ++ result.toString))
         .flatMap(qualifier.qualify(_))
         // .flatTap(result => IO(println(result.asJson.noSpaces)))
         .flatMap { expr =>
@@ -38,7 +38,7 @@ object Main extends IOApp.Simple:
           case Failure.Qualifying(name, scope) => IO.println(
             // todo: this should also have a location and some surrounding source code
             // todo2: non-fatal errors anyone? we'll need this for the language server
-            s"""Can't resolve name: $name
+            s"""Can't resolve name: ${name.value}
                |In scope:
                |${scope.currentPath.mkString_(".")}
                |Current names:

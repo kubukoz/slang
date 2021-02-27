@@ -14,11 +14,11 @@ def qualify[F[_]: Console](parsed: Expr[Id])(using MonadError[F, Throwable]): F[
   qualify0[StateT[F, Scope, *]](parsed)
     .runA(Scope.init)
 
-def qualify0[F[_]: Console](parsed: Expr[Id])(
+private def qualify0[F[_]: Console](parsed: Expr[Id])(
   using MonadError[F, Throwable],
   Scoped[F, Scope]
 ): F[Expr[Id]] =
-  val recurse = qualify0[F](_)
+  val recurse = qualify0[F]
   parsed match
     case lit: Expr.Literal[Id] => lit.pure[F]
     case Expr.Term(name) =>
@@ -55,7 +55,7 @@ def qualify0[F[_]: Console](parsed: Expr[Id])(
         qualifiedBodyF
       )
         .mapN(Expr.FunctionDef[Id].apply)
-        .scope(_.addNames(arguments))
+        .scope(_.addNames(arguments).addPath(functionName.value))
 
     case Expr.Apply(on, param) =>
       (
@@ -85,22 +85,28 @@ object Scoped:
   def apply[F[_], S](using Scoped[F, S]): Scoped[F, S] = summon
   type Of[S] = [F[_]] =>> Scoped[F, S]
 
-  given [F[_]: Monad, S]: Scoped[StateT[F, S, *], S] = new Scoped[StateT[F, S, *], S]:
+  given [F[_], E, S](using MonadError[F, E]): Scoped[StateT[F, S, *], S] = new Scoped[StateT[F, S, *], S]:
     def ask: StateT[F, S, S] = StateT.get
     def scope[A](f: S => S)(fa: StateT[F, S, A]): StateT[F, S, A] = StateT { state =>
-      val localState = f(state)
-
-      fa.run(localState)
+      fa
+        .runA(f(state))
+        .map(state -> _)
     }
 
 case class Scope(
   currentPath: Chain[String],
-  currentNames: Map[Name, Name]
+  currentLocalNames: Map[Name, Name]
 ):
+  private val builtins = Map("println" -> "<builtins>.println").map {
+    (k, v) => Name(k) -> Name(v)
+  }
+
+  def currentNames: Map[Name, Name] = builtins ++ currentLocalNames
+
   // so this is good actually, because we get shadowing for free
   // I guess...
   def addNames(names: Map[Name, Name]): Scope = copy(
-    currentNames = currentNames ++ names
+    currentLocalNames = currentLocalNames ++ names
   )
 
   def addPath(element: String): Scope = copy(
@@ -108,10 +114,6 @@ case class Scope(
   )
 
 object Scope:
-  private val builtins = Map("println" -> "<builtins>.println").map {
-    (k, v) => Name(k) -> Name(v)
-  }
-
-  val init: Scope = Scope(Chain.nil, builtins)
+  val init: Scope = Scope(Chain.nil, Map.empty)
   def ask[F[_]](using Scoped[F, Scope]): F[Scope] = Scoped[F, Scope].ask
 

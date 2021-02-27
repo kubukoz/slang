@@ -157,9 +157,9 @@ object ParserTests extends SimpleIOSuite {
     )
   }
 
-  //this is a very poor test, but it's better than running the program every time the example changes
   pureTest("can parse example") {
-    val src = """def identity(arg) = arg
+    val src = """
+        | def identity(arg) = arg
         |
         |def soMuchFun0(arg) = def foo(a) = a
         |def soMuchFun(arg) = identity ( arg )
@@ -168,10 +168,67 @@ object ParserTests extends SimpleIOSuite {
         |
         |println ( addOne(addOne(addOne(addOne ( 42)))) )
         |
-        |println(currentTime)""".stripMargin
+        |println(currentTime)
+        |""".stripMargin
 
     assert {
-      parse(src).isRight
+      parse(src) == Right(
+        block[Id](
+          FunctionDef(
+            Name("identity"),
+            Argument(Name("arg")),
+            Term(Name("arg"))
+          ),
+          FunctionDef(
+            Name("soMuchFun0"),
+            Argument(Name("arg")),
+            FunctionDef(
+              Name("foo"),
+              Argument(Name("a")),
+              Term(Name("a"))
+            )
+          ),
+          FunctionDef(
+            Name("soMuchFun"),
+            Argument(Name("arg")),
+            Apply(
+              Term(Name("identity")),
+              Term(Name("arg"))
+            )
+          ),
+          FunctionDef(
+            Name("evenMoreFun"),
+            Argument(Name("arg")),
+            Apply(
+              Term(Name("soMuchFun")),
+              Apply(
+                Term(Name("soMuchFun")),
+                Term(Name("arg"))
+              )
+            )
+          ),
+          Apply(
+            Term(Name("println")),
+            Apply(
+              Term(Name("addOne")),
+              Apply(
+                Term(Name("addOne")),
+                Apply(
+                  Term(Name("addOne")),
+                  Apply(
+                    Term(Name("addOne")),
+                    Literal(Number(42))
+                  )
+                )
+              )
+            )
+          ),
+          Apply(
+            Term(Name("println")),
+            Term(Name("currentTime"))
+          )
+        )
+      )
     }
   }
 }

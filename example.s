@@ -1,4 +1,4 @@
-def identity(arg) = arg
+ def identity(arg) = arg
 
 def soMuchFun0(arg) = def foo(a) = a
 def soMuchFun(arg) = identity ( arg )

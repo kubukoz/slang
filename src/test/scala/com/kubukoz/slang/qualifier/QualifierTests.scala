@@ -6,7 +6,9 @@ import com.kubukoz.slang._
 import com.kubukoz.slang.ast._
 import com.kubukoz.slang.ast.Literal._
 import cats.Id
+import cats.data.Chain
 import cats.effect.IO
+import scala.util.chaining._
 
 object QualifierTests extends SimpleIOSuite {
   type Result[A] = Either[Throwable, A]
@@ -15,6 +17,13 @@ object QualifierTests extends SimpleIOSuite {
     qualify[IO](expr).map { actual =>
       assert(actual == expected)
     }
+
+  def requireFailure(io: IO[Any]): IO[Throwable] = io
+    .attempt
+    .map {
+      _.swap.leftMap(result => new Throwable("Expected failure: " + result))
+    }
+    .rethrow
 
   test("println") {
     simpleQualifierTest(
@@ -75,5 +84,32 @@ object QualifierTests extends SimpleIOSuite {
         Expr.Literal(Literal.Number(42))
       )
     )
+  }
+
+  test("scope doesn't leak from function") {
+    qualify[IO]
+      .andThen(requireFailure) {
+        Expr.block(
+          Expr.FunctionDef(
+            Name("identity"),
+            Expr.Argument(Name("arg")),
+            Expr.Term(Name("arg"))
+          ),
+          Expr.FunctionDef(
+            Name("identity2"),
+            Expr.Argument(Name("arg2")),
+            Expr.Term(Name("arg"))
+          )
+        )
+      }
+      .map { actual =>
+        val scope =
+          Scope(
+            currentPath = Chain("identity2"),
+            currentLocalNames = Map(Name("arg2") -> Name("identity2(arg2)"))
+          )
+
+        assert(actual == Failure.Qualifying(Name("arg"), scope))
+      }
   }
 }
