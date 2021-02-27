@@ -1,4 +1,4 @@
-package com.kubukoz.slang
+package com.kubukoz.slang.interpreter
 
 import cats.Id
 import cats.Monad

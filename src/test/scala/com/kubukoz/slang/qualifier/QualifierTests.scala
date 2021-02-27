@@ -49,4 +49,31 @@ object QualifierTests extends SimpleIOSuite {
       )
     )
   }
+
+  //todo: prop test candidate
+  test("single elem block") {
+    simpleQualifierTest(
+      Expr.block(
+        Expr.Term(Name("println"))
+      )
+    )(
+      Expr.block(
+        Expr.Term(Name("<builtins>.println"))
+      )
+    )
+  }
+
+  test("simple function apply") {
+    simpleQualifierTest(
+      Expr.Apply(
+        Expr.Term(Name("println")),
+        Expr.Literal(Literal.Number(42))
+      )
+    )(
+      Expr.Apply(
+        Expr.Term(Name("<builtins>.println")),
+        Expr.Literal(Literal.Number(42))
+      )
+    )
+  }
 }

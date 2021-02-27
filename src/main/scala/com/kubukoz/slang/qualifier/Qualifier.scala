@@ -1,8 +1,10 @@
 package com.kubukoz.slang.qualifier
 
+import com.kubukoz.slang._
 import cats._
 import cats.data.NonEmptyList
 import cats.data.StateT
+import cats.data.Chain
 import cats.data.Kleisli
 import com.kubukoz.slang.ast._
 import cats.implicits._
@@ -22,11 +24,11 @@ def qualify0[F[_]: Console](parsed: Expr[Id])(
     case Expr.Term(name) =>
       Scope
         .ask[F]
-        .flatMap {
-          _
+        .flatMap { scope =>
+          scope
             .currentNames
             .get(name)
-            .liftTo[F](new Throwable("unknown name"))
+            .liftTo[F](Failure.Qualifying(name, scope))
         }
         .map(Expr.Term[Id])
 
@@ -55,6 +57,16 @@ def qualify0[F[_]: Console](parsed: Expr[Id])(
         .mapN(Expr.FunctionDef[Id].apply)
         .scope(_.addNames(arguments))
 
+    case Expr.Apply(on, param) =>
+      (
+        recurse(on),
+        recurse(param)
+      ).mapN(Expr.Apply.apply)
+
+    case Expr.Block(nodes) =>
+      // This is veeeeeery simplified, doesn't account for the fact that previous nodes should be able to
+      // influence next blocks... and possibly vice versa! This is going to be some tough stufffffffff.
+      nodes.traverse(recurse).map(Expr.Block(_))
 
     case literallyAnythingElse =>
       Console[F]
@@ -82,7 +94,7 @@ object Scoped:
     }
 
 case class Scope(
-  currentPath: List[String],
+  currentPath: Chain[String],
   currentNames: Map[Name, Name]
 ):
   // so this is good actually, because we get shadowing for free
@@ -91,11 +103,15 @@ case class Scope(
     currentNames = currentNames ++ names
   )
 
+  def addPath(element: String): Scope = copy(
+    currentPath = currentPath.append(element)
+  )
+
 object Scope:
   private val builtins = Map("println" -> "<builtins>.println").map {
     (k, v) => Name(k) -> Name(v)
   }
 
-  val init: Scope = Scope(Nil, builtins)
+  val init: Scope = Scope(Chain.nil, builtins)
   def ask[F[_]](using Scoped[F, Scope]): F[Scope] = Scoped[F, Scope].ask
 
