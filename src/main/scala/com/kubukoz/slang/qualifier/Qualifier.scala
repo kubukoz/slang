@@ -74,27 +74,30 @@ private def qualify0[F[_]](parsed: Expr[Id])(
     // This allows functions in a block to see each other, including mutual recursion.
     // todo: deduplicate this with the usual qualification of functions above
     case Expr.Block(nodes) =>
-      Scope.ask[F].flatMap { scope =>
-        def prequalify(node: Expr[Id]): Map[Name, Name] = node match
-          case Expr.FunctionDef(functionName, _, _) =>
+      val prequalify: Expr[Id] => F[Map[Name, Name]] =
+        case Expr.FunctionDef(functionName, _, _) =>
+          Scope.ask[F].map { scope =>
             // note: these two lines have been copied verbatim from the functiondef case in qualify0
             // this must be deduplicated (ideally names will be ADTs with scope options)
             val scopePathPrefix = scope.currentPath.reverse.toNel.fold("")(_.mkString_(".") + ".")
             val functionNameQualified = Name(scopePathPrefix + functionName.value)
             Map(functionName -> functionNameQualified)
+          }
 
-          case _ =>
-            // Not supporting any other means of introducing symbols in blocks yet
-            Map.empty
+        case _ =>
+          // Not supporting any other means of introducing symbols in blocks yet
+          Map.empty.pure[F]
 
-        val topLevelNames = nodes.toList.flatMap(prequalify).toMap
+      // todo: add path element for block? Probably have to come up with synthetic IDs at this point
+      nodes
+        .traverse(prequalify)
+        .map(_.toList.flatten.toMap)
+        .flatMap { names =>
+          nodes
+            .traverse(recurse)
+            .scope(_.fork.addNames(names))
+        }.map(Expr.Block(_))
 
-        // todo: add path element for block? Probably have to come up with synthetic IDs at this point
-        nodes
-          .traverse(recurse)
-          .scope(_.fork.addNames(topLevelNames))
-          .map(Expr.Block(_))
-      }
 
 end qualify0
 
