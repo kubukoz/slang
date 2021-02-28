@@ -5,7 +5,7 @@ lazy val root = (project in file(".")).settings(
   scalacOptions --= Seq("-Xfatal-warnings"),
   libraryDependencies ++= Seq(
     // M3 supports only 3.0.0-RC1
-    // we're blocked on weaver for RC1 though :()
+    // we're blocked on weaver for RC1 though :(
     "com.github.julien-truffaut" %% "monocle-core" % "3.0.0-M2",
     "org.typelevel" %% "cats-effect" % "3.0.0-RC2",
     "co.fs2" %% "fs2-io" % "3.0.0-M9",
