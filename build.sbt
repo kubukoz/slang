@@ -1,14 +1,14 @@
 
-ThisBuild / scalaVersion := "3.0.0-M3"
 
 val GraalVM11 = "graalvm-ce-java11@20.3.0"
 
+ThisBuild / scalaVersion := "3.0.0-M3"
 ThisBuild / githubWorkflowJavaVersions := Seq(GraalVM11)
+ThisBuild / githubWorkflowPublishTargetBranches := Nil
 
 lazy val root = (project in file(".")).settings(
   name := "slang",
   organization := "com.kubukoz",
-  scalaVersion := "3.0.0-M3",
   scalacOptions --= Seq("-Xfatal-warnings"),
   libraryDependencies ++= Seq(
     // M3 supports only 3.0.0-RC1
