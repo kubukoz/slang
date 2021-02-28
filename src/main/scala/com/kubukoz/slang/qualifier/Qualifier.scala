@@ -123,7 +123,11 @@ case class Scope(
   //closest is on top
   parents: List[Scope]
 ):
-  private val builtins = Map("println" -> "<builtins>.println").map {
+  private val builtins = Map(
+    "println" -> "<builtins>.println",
+    "addOne" -> "<builtins>.addOne",
+    "currentTime" -> "<builtins>.currentTime"
+  ).map {
     (k, v) => Name(k) -> Name(v)
   }
 
