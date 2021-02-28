@@ -59,6 +59,30 @@ object QualifierTests extends SimpleIOSuite {
     )
   }
 
+  test("nested function") {
+    simpleQualifierTest(
+      Expr.FunctionDef(
+        Name("f1"),
+        Argument(Name("arg")),
+        Expr.FunctionDef(
+          Name("f2"),
+          Argument(Name("arg2")),
+          Expr.Term(Name("arg2"))
+        )
+      )
+    )(
+      Expr.FunctionDef(
+        Name("f1"),
+        Argument(Name("f1(arg)")),
+        Expr.FunctionDef(
+          Name("f1.f2"),
+          Argument(Name("f1.f2(arg2)")),
+          Expr.Term(Name("f1.f2(arg2)"))
+        )
+      )
+    )
+  }
+
   //todo: prop test candidate
   test("single elem block") {
     simpleQualifierTest(
@@ -105,8 +129,9 @@ object QualifierTests extends SimpleIOSuite {
       .map { actual =>
         val scope =
           Scope(
-            currentPath = Chain("identity2"),
-            currentLocalNames = Map(Name("arg2") -> Name("identity2(arg2)"))
+            currentPath = List("identity2"),
+            currentLocalNames = Map(Name("identity2") -> Name("identity2"), Name("arg2") -> Name("identity2(arg2)")),
+            parents = Scope.root :: Nil
           )
 
         assert(actual == Failure.Qualifying(Name("arg"), scope))
@@ -155,7 +180,7 @@ object QualifierTests extends SimpleIOSuite {
       )
     )
 
-    simpleQualifierTest(input) {
+    ignore("todo") *> simpleQualifierTest(input) {
       Expr.block(
         Expr.FunctionDef[Id](
           Name("f1"),

@@ -11,7 +11,7 @@ import cats.implicits._
 
 def qualify[F[_]](parsed: Expr[Id])(using MonadError[F, Throwable]): F[Expr[Id]] =
   qualify0[StateT[F, Scope, *]](parsed)
-    .runA(Scope.init)
+    .runA(Scope.root)
 
 private def qualify0[F[_]](parsed: Expr[Id])(
   using MonadError[F, Throwable],
@@ -32,29 +32,34 @@ private def qualify0[F[_]](parsed: Expr[Id])(
         .map(Expr.Term[Id])
 
     case Expr.FunctionDef(functionName, argument, body) =>
-      def functionQualified(name: Name): Name =
-         Name(s"${functionName.value}(${name.value})")
+      Scope.ask[F].flatMap { scope =>
+        val scopePathPrefix = scope.currentPath.reverse.toNel.fold("")(_.mkString_(".") + ".")
+        val functionNameQualified = Name(scopePathPrefix + functionName.value)
+        def functionQualified(name: Name): Name =
+            Name(s"${functionNameQualified.value}(${name.value})")
 
-      // Just in case we have more arguments later (or currying)
-      val arguments = List(argument.name).map(arg =>
-        arg -> functionQualified(arg)
-      ).toMap
+        // Just in case we have more arguments later (or currying)
+        val arguments = List(argument.name).map(arg =>
+          arg -> functionQualified(arg)
+        ).toMap
 
-      //todo qualify function name itself
+        val functionKnownName = Map(functionName -> functionNameQualified)
 
-      val qualifiedArg = Argument[Id](functionQualified(argument.name)).pure[F]
-      val qualifiedBodyF = recurse(body)
+        //todo qualify function name itself
 
-      //so what's happening here is probably
-      //a HKT's F can't be inferred because of the extra call at the end
-      //this should be easily reproducible
-      (
-        functionName.pure[F],
-        qualifiedArg,
-        qualifiedBodyF
-      )
-        .mapN(Expr.FunctionDef[Id].apply)
-        .scope(_.addNames(arguments).addPath(functionName.value))
+        // this is safe, trust me 😂
+        val qualifiedArg = Argument[Id](arguments(argument.name))
+
+        val qualifiedBodyF = recurse(body)
+
+        (
+          functionNameQualified.pure[F],
+          qualifiedArg.pure[F],
+          qualifiedBodyF
+        )
+          .mapN(Expr.FunctionDef[Id].apply)
+          .scope(_.fork.addNames(functionKnownName ++ arguments).addPath(functionName.value))
+        }
 
     case Expr.Apply(on, param) =>
       (
@@ -88,13 +93,17 @@ object Scoped:
     }
 
 case class Scope(
-  currentPath: Chain[String],
-  currentLocalNames: Map[Name, Name]
+  //closest on top
+  currentPath: List[String],
+  currentLocalNames: Map[Name, Name],
+  //closest is on top
+  parents: List[Scope]
 ):
   private val builtins = Map("println" -> "<builtins>.println").map {
     (k, v) => Name(k) -> Name(v)
   }
 
+  def fork: Scope = copy(parents = this :: parents)
   def currentNames: Map[Name, Name] = builtins ++ currentLocalNames
 
   // so this is good actually, because we get shadowing for free
@@ -104,10 +113,10 @@ case class Scope(
   )
 
   def addPath(element: String): Scope = copy(
-    currentPath = currentPath.append(element)
+    currentPath = element :: currentPath
   )
 
 object Scope:
-  val init: Scope = Scope(Chain.nil, Map.empty)
+  val root: Scope = Scope(Nil, Map.empty, Nil)
   def ask[F[_]](using Scoped[F, Scope]): F[Scope] = Scoped[F, Scope].ask
 
