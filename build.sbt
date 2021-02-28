@@ -1,3 +1,10 @@
+
+ThisBuild / scalaVersion := "3.0.0-M3"
+
+val GraalVM11 = "graalvm-ce-java11@20.3.0"
+
+ThisBuild / githubWorkflowJavaVersions := Seq(GraalVM11)
+
 lazy val root = (project in file(".")).settings(
   name := "slang",
   organization := "com.kubukoz",
