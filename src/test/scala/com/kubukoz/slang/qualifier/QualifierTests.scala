@@ -127,12 +127,15 @@ object QualifierTests extends SimpleIOSuite {
         )
       }
       .map { actual =>
+        val rootNames = Map(Name("identity") -> Name("identity"), Name("identity2") -> Name("identity2"))
         val scope =
-          Scope(
-            currentPath = List("identity2"),
-            currentLocalNames = Map(Name("identity2") -> Name("identity2"), Name("arg2") -> Name("identity2(arg2)")),
-            parents = Scope.root :: Nil
-          )
+          Scope
+            .root
+            .fork // block scope
+            .addNames(rootNames)
+            .fork // function scope
+            .addNames(Map(Name("arg2") -> Name("identity2(arg2)")))
+            .addPath("identity2")
 
         assert(actual == Failure.Qualifying(Name("arg"), scope))
       }
@@ -208,7 +211,7 @@ object QualifierTests extends SimpleIOSuite {
       )
     )
 
-    ignore("todo") *> simpleQualifierTest(input) {
+    simpleQualifierTest(input) {
       Expr.block(
         Expr.FunctionDef[Id](
           Name("f1"),

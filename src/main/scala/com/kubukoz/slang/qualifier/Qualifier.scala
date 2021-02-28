@@ -27,6 +27,7 @@ private def qualify0[F[_]](parsed: Expr[Id])(
           scope
             .currentNames
             .get(name)
+            // .getOrElse(Name("<unresolved>."+name.value)).pure[F]
             .liftTo[F](Failure.Qualifying(name, scope))
         }
         .map(Expr.Term[Id])
@@ -67,10 +68,33 @@ private def qualify0[F[_]](parsed: Expr[Id])(
         recurse(param)
       ).mapN(Expr.Apply.apply)
 
+    // At every block, we go through all the top-level nodes
+    // and see if they introduce new symbols. This would be the case for function or constant definitions.
+    // If they do, we qualify them here, and create a "virtual" scope for the entire block.
+    // This allows functions in a block to see each other, including mutual recursion.
+    // todo: deduplicate this with the usual qualification of functions above
     case Expr.Block(nodes) =>
-      // This is veeeeeery simplified, doesn't account for the fact that previous nodes should be able to
-      // influence next blocks... and possibly vice versa! This is going to be some tough stufffffffff.
-      nodes.traverse(recurse).map(Expr.Block(_))
+      Scope.ask[F].flatMap { scope =>
+        def prequalify(node: Expr[Id]): Map[Name, Name] = node match
+          case Expr.FunctionDef(functionName, _, _) =>
+            // note: these two lines have been copied verbatim from the functiondef case in qualify0
+            // this must be deduplicated (ideally names will be ADTs with scope options)
+            val scopePathPrefix = scope.currentPath.reverse.toNel.fold("")(_.mkString_(".") + ".")
+            val functionNameQualified = Name(scopePathPrefix + functionName.value)
+            Map(functionName -> functionNameQualified)
+
+          case _ =>
+            // Not supporting any other means of introducing symbols in blocks yet
+            Map.empty
+
+        val topLevelNames = nodes.toList.flatMap(prequalify).toMap
+
+        // todo: add path element for block? Probably have to come up with synthetic IDs at this point
+        nodes
+          .traverse(recurse)
+          .scope(_.fork.addNames(topLevelNames))
+          .map(Expr.Block(_))
+      }
 
 end qualify0
 
