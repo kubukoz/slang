@@ -9,6 +9,7 @@ import cats.Id
 import cats.data.Chain
 import cats.effect.IO
 import scala.util.chaining._
+import dsl._
 
 object QualifierTests extends SimpleIOSuite {
   type Result[A] = Either[Throwable, A]
@@ -43,43 +44,17 @@ object QualifierTests extends SimpleIOSuite {
 
   test("function argument") {
     simpleQualifierTest(
-      Expr.FunctionDef(
-        Name("identity"),
-        Argument(Name("arg")),
-        Expr.Term(Name("arg"))
-      )
+      "identity".of("arg").is("arg")
     )(
-      Expr.FunctionDef(
-        Name("identity"),
-        Argument(Name("identity(arg)")),
-        // todo: name as enum, in this case it would be a local function parameter
-        // so syntax is like function parameters, but whaddaya know
-        Expr.Term(Name("identity(arg)"))
-      )
+      "identity".of("identity(arg)").is("identity(arg)")
     )
   }
 
   test("nested function") {
     simpleQualifierTest(
-      Expr.FunctionDef(
-        Name("f1"),
-        Argument(Name("arg")),
-        Expr.FunctionDef(
-          Name("f2"),
-          Argument(Name("arg2")),
-          Expr.Term(Name("arg2"))
-        )
-      )
+      "f1".of("arg").is("f2".of("arg2").is("arg2"))
     )(
-      Expr.FunctionDef(
-        Name("f1"),
-        Argument(Name("f1(arg)")),
-        Expr.FunctionDef(
-          Name("f1.f2"),
-          Argument(Name("f1.f2(arg2)")),
-          Expr.Term(Name("f1.f2(arg2)"))
-        )
-      )
+      "f1".of("f1(arg)").is("f1.f2".of("f1.f2(arg2)").is("f1.f2(arg2)"))
     )
   }
 
@@ -98,15 +73,9 @@ object QualifierTests extends SimpleIOSuite {
 
   test("simple function apply") {
     simpleQualifierTest(
-      Expr.Apply(
-        Expr.Term(Name("println")),
-        Expr.Literal(Literal.Number(42))
-      )
+      "println".of(42)
     )(
-      Expr.Apply(
-        Expr.Term(Name("<builtins>.println")),
-        Expr.Literal(Literal.Number(42))
-      )
+      "<builtins>.println".of(42)
     )
   }
 
@@ -114,16 +83,8 @@ object QualifierTests extends SimpleIOSuite {
     qualify[IO]
       .andThen(requireFailure) {
         Expr.block(
-          Expr.FunctionDef(
-            Name("identity"),
-            Argument(Name("arg")),
-            Expr.Term(Name("arg"))
-          ),
-          Expr.FunctionDef(
-            Name("identity2"),
-            Argument(Name("arg2")),
-            Expr.Term(Name("arg"))
-          )
+          "identity".of("arg").is("arg"),
+          "identity2".of("arg2").is("arg")
         )
       }
       .map { actual =>
@@ -142,93 +103,31 @@ object QualifierTests extends SimpleIOSuite {
   }
 
   test("simple self-recursion") {
-    val input = Expr.FunctionDef[Id](
-      Name("never"),
-      Argument(Name("a")),
-      Expr.Apply(
-        Expr.Term(Name("never")),
-        Expr.Term(Name("a"))
-      )
+    simpleQualifierTest(
+      "never".of("a").is("never".of("a"))
+    )(
+      "never".of("never(a)").is("never".of("never(a)"))
     )
-
-    simpleQualifierTest(input) {
-      Expr.FunctionDef[Id](
-        Name("never"),
-        Argument(Name("never(a)")),
-        Expr.Apply(
-          Expr.Term[Id](Name("never")),
-          Expr.Term(Name("never(a)"))
-        )
-      )
-    }
   }
 
   test("fixpoint combinator: fix(f) = f(fix(f))") {
-    val input = Expr.FunctionDef[Id](
-      Name("fix"),
-      Argument(Name("f")),
-      Expr.Apply(
-        Expr.Term(Name("f")),
-        Expr.Apply(
-          Expr.Term(Name("fix")),
-          Expr.Term(Name("f"))
-        )
-      )
+    simpleQualifierTest(
+      "fix".of("f").is("f".of("fix".of("f")))
+    )(
+      "fix".of("fix(f)").is("fix(f)".of("fix".of("fix(f)")))
     )
-
-    simpleQualifierTest(input) {
-      Expr.FunctionDef[Id](
-        Name("fix"),
-        Argument(Name("fix(f)")),
-        Expr.Apply(
-          Expr.Term(Name("fix(f)")),
-          Expr.Apply(
-            Expr.Term(Name("fix")),
-            Expr.Term(Name("fix(f)"))
-          )
-        )
-      )
-    }
   }
 
   test("infinite mutual recursion") {
     val input = Expr.block(
-      Expr.FunctionDef[Id](
-        Name("f1"),
-        Argument(Name("a")),
-        Expr.Apply(
-          Expr.Term(Name("f2")),
-          Expr.Term(Name("a"))
-        )
-      ),
-      Expr.FunctionDef[Id](
-        Name("f2"),
-        Argument(Name("a")),
-        Expr.Apply(
-          Expr.Term(Name("f1")),
-          Expr.Term(Name("a"))
-        )
-      )
+      "f1".of("a").is("f2".of("a")),
+      "f2".of("a").is("f1".of("a"))
     )
 
     simpleQualifierTest(input) {
       Expr.block(
-        Expr.FunctionDef[Id](
-          Name("f1"),
-          Argument(Name("f1(a)")),
-          Expr.Apply(
-            Expr.Term(Name("f2")),
-            Expr.Term(Name("f1(a)"))
-          )
-        ),
-        Expr.FunctionDef[Id](
-          Name("f2"),
-          Argument(Name("f2(a)")),
-          Expr.Apply(
-            Expr.Term(Name("f1")),
-            Expr.Term(Name("f2(a)"))
-          )
-        )
+        "f1".of("f1(a)").is("f2".of("f1(a)")),
+        "f2".of("f2(a)").is("f1".of("f2(a)"))
       )
     }
   }

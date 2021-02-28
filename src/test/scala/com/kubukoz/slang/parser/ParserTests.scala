@@ -7,6 +7,7 @@ import com.kubukoz.slang.ast.{Literal => LLiteral, _}
 import com.kubukoz.slang.ast.Expr._
 import com.kubukoz.slang.ast.Literal._
 import cats.Id
+import dsl._
 
 object ParserTests extends SimpleIOSuite {
   import parsing.parser.{parseAll => parse}
@@ -15,94 +16,53 @@ object ParserTests extends SimpleIOSuite {
   def parsePretty(text: String): Either[String, Expr[Id]] =
     parse(text).leftMap(prettyPrint("test-data", text, _))
 
-  def simpleParserTest(text: String)(result: Either[Failure.Parsing, Expr[Id]])(implicit loc: SourceLocation) =
+  def simpleParserTest(text: String)(result: Expr[Id])(implicit loc: SourceLocation) =
     pureTest(text) {
-      assert(parse(text) == result)
+      assert(parse(text) == Right(result))
     }
 
-  simpleParserTest("42")(Literal[Id](Number(42)).asRight)
+  simpleParserTest("42")(Literal[Id](Number(42)))
 
   simpleParserTest("hello(world)") {
-    Right(
-      Apply(
-        Term(Name("hello")),
-        Term(Name("world"))
-      )
-    )
+    "hello".of("world")
   }
 
   simpleParserTest("hello ( world )") {
-    Right(
-      Apply(
-        Term(Name("hello")),
-        Term(Name("world"))
-      )
-    )
-  }
-  pureTest("hello ( 42 ) ") {
-    assert {
-      parse("hello ( 42 ) ") == Right(
-        Apply[Id](
-          Term(Name("hello")),
-          Literal(Number(42))
-        )
-      )
-    } || succeed("not implemented yet")
+    "hello".of("world")
   }
 
-  pureTest("currying: hello(foo)(bar)") {
+  pureTest("hello ( 42 ) ") {
+    // this can't be inlined apparently
+    // possible bug in weaver wrt overloads?
+    val expected = "hello".of(42)
     assert {
-      parse("hello(foo)(bar)") == Right(
-        Apply[Id](
-          Apply[Id](
-            Term(Name("hello")),
-            Term(Name("foo"))
-          ),
-          Term(Name("bar"))
-        )
-      )
+      parse("hello ( 42 ) ") == Right(expected)
     }
   }
 
-  //local definition expression (bar is local to foo)
+  pureTest("currying: hello(foo)(bar)") {
+    val expected = "hello".of("foo").of("bar")
+    assert {
+      parse("hello(foo)(bar)") == Right(expected)
+    }
+  }
+
+  // //local definition expression (bar is local to foo)
   simpleParserTest("def foo(arg) = def bar(a) = arg(a)") {
-    Right(
-      FunctionDef(
-        Name("foo"),
-        Argument(Name("arg")),
-        FunctionDef(
-          Name("bar"),
-          Argument(Name("a")),
-          Apply(
-            Term(Name("arg")),
-            Term(Name("a"))
-          )
-        )
+    "foo"
+      .of("arg")
+      .is(
+        "bar".of("a").is("arg".of("a"))
       )
-    )
   }
 
   simpleParserTest("def demo( fun ) = fun") {
-    Right(
-      FunctionDef(
-        Name("demo"),
-        Argument(Name("fun")),
-        Term(Name("fun"))
-      )
-    )
+    "demo".of("fun").is("fun")
   }
 
   locally {
-    val selfRecIdentity = Right(
-      FunctionDef[Id](
-        Name("identity"),
-        Argument(Name("arg")),
-        Apply(
-          Term(Name("identity")),
-          Term(Name("arg"))
-        )
-      )
-    )
+    val selfRecIdentity =
+      "identity".of("arg").is("identity".of("arg"))
 
     simpleParserTest("def identity(arg) = identity(arg)") {
       selfRecIdentity
@@ -121,34 +81,17 @@ object ParserTests extends SimpleIOSuite {
   }
 
   simpleParserTest("def soMuchFun0(arg) = def foo(a) = a") {
-    Right(
-      FunctionDef(
-        Name("soMuchFun0"),
-        Argument(Name("arg")),
-        FunctionDef(
-          Name("foo"),
-          Argument(Name("a")),
-          Term(Name("a"))
-        )
+    "soMuchFun0"
+      .of("arg")
+      .is(
+        "foo".of("a").is("a")
       )
-    )
   }
 
   pureTest("two lines") {
     val result = block[Id](
-      FunctionDef(
-        Name("identity"),
-        Argument(Name("arg")),
-        Term(Name("arg"))
-      ),
-      FunctionDef(
-        Name("soMuchFun"),
-        Argument(Name("arg")),
-        Apply(
-          Term(Name("identity")),
-          Term(Name("arg"))
-        )
-      )
+      "identity".of("arg").is("arg"),
+      "soMuchFun".of("arg").is("identity".of("arg"))
     )
 
     assert(
@@ -171,64 +114,17 @@ object ParserTests extends SimpleIOSuite {
         |println(currentTime)
         |""".stripMargin
 
+    val expected = block[Id](
+      "identity".of("arg").is("arg"),
+      "soMuchFun0".of("arg").is("foo".of("a").is("a")),
+      "soMuchFun".of("arg").is("identity".of("arg")),
+      "evenMoreFun".of("arg").is("soMuchFun".of("soMuchFun".of("arg"))),
+      "println".of("addOne".of("addOne".of("addOne".of("addOne".of(42))))),
+      "println".of("currentTime")
+    )
+
     assert {
-      parse(src) == Right(
-        block[Id](
-          FunctionDef(
-            Name("identity"),
-            Argument(Name("arg")),
-            Term(Name("arg"))
-          ),
-          FunctionDef(
-            Name("soMuchFun0"),
-            Argument(Name("arg")),
-            FunctionDef(
-              Name("foo"),
-              Argument(Name("a")),
-              Term(Name("a"))
-            )
-          ),
-          FunctionDef(
-            Name("soMuchFun"),
-            Argument(Name("arg")),
-            Apply(
-              Term(Name("identity")),
-              Term(Name("arg"))
-            )
-          ),
-          FunctionDef(
-            Name("evenMoreFun"),
-            Argument(Name("arg")),
-            Apply(
-              Term(Name("soMuchFun")),
-              Apply(
-                Term(Name("soMuchFun")),
-                Term(Name("arg"))
-              )
-            )
-          ),
-          Apply(
-            Term(Name("println")),
-            Apply(
-              Term(Name("addOne")),
-              Apply(
-                Term(Name("addOne")),
-                Apply(
-                  Term(Name("addOne")),
-                  Apply(
-                    Term(Name("addOne")),
-                    Literal(Number(42))
-                  )
-                )
-              )
-            )
-          ),
-          Apply(
-            Term(Name("println")),
-            Term(Name("currentTime"))
-          )
-        )
-      )
+      parse(src) == Right(expected)
     }
   }
 }
