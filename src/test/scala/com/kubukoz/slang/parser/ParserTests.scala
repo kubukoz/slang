@@ -7,7 +7,10 @@ import com.kubukoz.slang.ast.{Literal => LLiteral, _}
 import com.kubukoz.slang.ast.Expr._
 import com.kubukoz.slang.ast.Literal._
 import cats.Id
+import cats.effect.IO
 import dsl._
+import fs2.io.file._
+import java.nio.file.Paths
 
 object ParserTests extends SimpleIOSuite {
   import parsing.parser.{parseAll => parse}
@@ -100,19 +103,9 @@ object ParserTests extends SimpleIOSuite {
     )
   }
 
-  pureTest("can parse example") {
-    val src = """
-        | def identity(arg) = arg
-        |
-        |def soMuchFun0(arg) = def foo(a) = a
-        |def soMuchFun(arg) = identity ( arg )
-        |
-        |def evenMoreFun(arg) = soMuchFun ( soMuchFun ( arg))
-        |
-        |println ( addOne(addOne(addOne(addOne ( 42)))) )
-        |
-        |println(currentTime)
-        |""".stripMargin
+  test("can parse example") {
+
+    val srcIO = Files[IO].readAll(Paths.get("./example.s"), 4096).through(fs2.text.utf8Decode[IO]).compile.string
 
     val expected = block[Id](
       "identity".of("arg").is("arg"),
@@ -123,8 +116,10 @@ object ParserTests extends SimpleIOSuite {
       "println".of("currentTime")
     )
 
-    assert {
-      parse(src) == Right(expected)
+    srcIO.map { src =>
+      assert {
+        parse(src) == Right(expected)
+      }
     }
   }
 }
