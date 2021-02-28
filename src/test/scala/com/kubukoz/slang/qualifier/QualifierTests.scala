@@ -160,6 +160,34 @@ object QualifierTests extends SimpleIOSuite {
     }
   }
 
+  test("fixpoint combinator: fix(f) = f(fix(f))") {
+    val input = Expr.FunctionDef[Id](
+      Name("fix"),
+      Argument(Name("f")),
+      Expr.Apply(
+        Expr.Term(Name("f")),
+        Expr.Apply(
+          Expr.Term(Name("fix")),
+          Expr.Term(Name("f"))
+        )
+      )
+    )
+
+    simpleQualifierTest(input) {
+      Expr.FunctionDef[Id](
+        Name("fix"),
+        Argument(Name("fix(f)")),
+        Expr.Apply(
+          Expr.Term(Name("fix(f)")),
+          Expr.Apply(
+            Expr.Term(Name("fix")),
+            Expr.Term(Name("fix(f)"))
+          )
+        )
+      )
+    }
+  }
+
   test("infinite mutual recursion") {
     val input = Expr.block(
       Expr.FunctionDef[Id](
