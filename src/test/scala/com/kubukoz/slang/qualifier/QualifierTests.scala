@@ -112,4 +112,26 @@ object QualifierTests extends SimpleIOSuite {
         assert(actual == Failure.Qualifying(Name("arg"), scope))
       }
   }
+
+  test("simple self-recursion") {
+    val input = Expr.FunctionDef[Id](
+      Name("never"),
+      Argument(Name("a")),
+      Expr.Apply(
+        Expr.Term(Name("never")),
+        Expr.Term(Name("a"))
+      )
+    )
+
+    simpleQualifierTest(input) {
+      Expr.FunctionDef[Id](
+        Name("never"),
+        Argument(Name("never(a)")),
+        Expr.Apply(
+          Expr.Term[Id](Name("never")),
+          Expr.Term(Name("never(a)"))
+        )
+      )
+    }
+  }
 }
