@@ -74,20 +74,6 @@ private def qualify0[F[_]](parsed: Expr[Id])(
     // This allows functions in a block to see each other, including mutual recursion.
     // todo: deduplicate this with the usual qualification of functions above
     case Expr.Block(nodes) =>
-      val prequalify: Expr[Id] => F[Map[Name, Name]] =
-        case Expr.FunctionDef(functionName, _, _) =>
-          Scope.ask[F].map { scope =>
-            // note: these two lines have been copied verbatim from the functiondef case in qualify0
-            // this must be deduplicated (ideally names will be ADTs with scope options)
-            val scopePathPrefix = scope.currentPath.reverse.toNel.fold("")(_.mkString_(".") + ".")
-            val functionNameQualified = Name(scopePathPrefix + functionName.value)
-            Map(functionName -> functionNameQualified)
-          }
-
-        case _ =>
-          // Not supporting any other means of introducing symbols in blocks yet
-          Map.empty.pure[F]
-
       // todo: add path element for block? Probably have to come up with synthetic IDs at this point
       nodes
         .traverse(prequalify)
@@ -100,6 +86,20 @@ private def qualify0[F[_]](parsed: Expr[Id])(
 
 
 end qualify0
+
+private def prequalify[F[_]: Scoped.Of[Scope]: Applicative]: Expr[Id] => F[Map[Name, Name]] =
+  case Expr.FunctionDef(functionName, _, _) =>
+    Scope.ask[F].map { scope =>
+      // note: these two lines have been copied verbatim from the functiondef case in qualify0
+      // this must be deduplicated (ideally names will be ADTs with scope options)
+      val scopePathPrefix = scope.currentPath.reverse.toNel.fold("")(_.mkString_(".") + ".")
+      val functionNameQualified = Name(scopePathPrefix + functionName.value)
+      Map(functionName -> functionNameQualified)
+    }
+
+  case _ =>
+    // Not supporting any other means of introducing symbols in blocks yet
+    Map.empty.pure[F]
 
 trait Scoped[F[_], S]:
   def ask: F[S]
