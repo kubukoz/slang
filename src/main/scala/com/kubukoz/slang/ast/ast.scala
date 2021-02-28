@@ -1,6 +1,5 @@
 package com.kubukoz.slang.ast
 import com.kubukoz.slang.ast.{Literal => AstLiteral}
-import io.circe._
 import cats.data.NonEmptyList
 import cats.Functor
 import cats.implicits._
