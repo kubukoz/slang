@@ -57,17 +57,12 @@ object parsing:
       token(char('=')) *> expr
     ).mapN(Expr.FunctionDef[cats.Id])
 
-  def applies[E <: Expr[Id]](
+  def applies[F[_], E <: Expr[F]](
     base: Parser[E],
-    expr: Parser[Expr[Id]]
-  ): Parser[E | Expr.Apply[Id]] =
+    expr: Parser[Expr[F]]
+  ): Parser[E | Expr.Apply[F]] =
     (base ~ parens(expr).rep0).map {
-      case (b, Nil) =>
-        b
-      case (b, first :: more) =>
-        val base: Expr.Apply[Id] = Expr.Apply(b, first)
-
-        more.foldLeft(base)(Expr.Apply(_, _))
+      (base, argLists) => argLists.foldLeft[E | Expr.Apply[F]](base)(Expr.Apply(_, _))
     }
 
   val singleExpression: Parser[Expr[Id]] = Parser.recursive { expr =>
