@@ -134,4 +134,46 @@ object QualifierTests extends SimpleIOSuite {
       )
     }
   }
+
+  test("infinite mutual recursion") {
+    val input = Expr.block(
+      Expr.FunctionDef[Id](
+        Name("f1"),
+        Argument(Name("a")),
+        Expr.Apply(
+          Expr.Term(Name("f2")),
+          Expr.Term(Name("a"))
+        )
+      ),
+      Expr.FunctionDef[Id](
+        Name("f2"),
+        Argument(Name("a")),
+        Expr.Apply(
+          Expr.Term(Name("f1")),
+          Expr.Term(Name("a"))
+        )
+      )
+    )
+
+    simpleQualifierTest(input) {
+      Expr.block(
+        Expr.FunctionDef[Id](
+          Name("f1"),
+          Argument(Name("f1(a)")),
+          Expr.Apply(
+            Expr.Term(Name("f2")),
+            Expr.Term(Name("f1(a)"))
+          )
+        ),
+        Expr.FunctionDef[Id](
+          Name("f2"),
+          Argument(Name("f2(a)")),
+          Expr.Apply(
+            Expr.Term(Name("f1")),
+            Expr.Term(Name("f2(a)"))
+          )
+        )
+      )
+    }
+  }
 }
