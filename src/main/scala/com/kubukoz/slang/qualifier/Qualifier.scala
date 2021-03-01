@@ -9,105 +9,117 @@ import cats.data.Kleisli
 import com.kubukoz.slang.ast._
 import cats.implicits._
 import cats.effect.std.Console
+import scala.util.chaining._
 
 def qualify[F[_]: Console](parsed: Expr[Id])(using MonadError[F, Throwable]): F[Expr[Id]] =
-  qualify0[StateT[F, Scope, *]](parsed)
-    .runA(Scope.root)
+  given Q: Qualifier[StateT[F, Scope, *]] = Qualifier.scopedInstance
+  Qualifier[F].qualify(parsed)
 
-private def qualify0[F[_]](parsed: Expr[Id])(
-  using MonadError[F, Throwable],
-  Scoped[F, Scope]
-): F[Expr[Id]] =
-  val recurse = qualify0[F]
-  parsed match
-    case lit: Expr.Literal[Id] => lit.pure[F]
-    case Expr.Term(name) =>
-      Scope
-        .ask[F]
-        .flatMap { scope =>
-          scope
-            .currentNames
-            .get(name)
-            // .getOrElse(Name("<unresolved>."+name.value)).pure[F]
-            .liftTo[F](Failure.Qualifying(name, scope))
-        }
-        .map(Expr.Term[Id])
+trait Qualifier[F[_]]:
+  def qualify(parsed: Expr[Id]): F[Expr[Id]]
 
-    case Expr.FunctionDef(functionName, argument, body) =>
-      Scope.ask[F].flatMap { scope =>
-        val scopePathPrefix = scope.currentPath.reverse.toNel.fold("")(_.mkString_(".") + ".")
-        val functionNameQualified = Name(scopePathPrefix + functionName.value)
-        def functionQualified(name: Name): Name =
-            Name(s"${functionNameQualified.value}(${name.value})")
+object Qualifier:
+  def apply[F[_]](using Qualifier[F]): Qualifier[F] = summon
+  given[F[_]: FlatMap](using Q: Qualifier[StateT[F, Scope, *]]): Qualifier[F] =
+    parsed => Q.qualify(parsed).runA(Scope.root)
 
-        // Just in case we have more arguments later (or currying)
-        val arguments = List(argument.name).map(arg =>
-          arg -> functionQualified(arg)
-        ).toMap
+  def scopedInstance[F[_]: Console](using MonadError[F, Throwable], Scoped[F, Scope]): Qualifier[F] = new Qualifier[F]:
 
-        val functionKnownName = Map(functionName -> functionNameQualified)
+    extension[A](fa: F[A])
+      def withForkedScope(f: Scope => Scope): F[A] = Scoped[F, Scope].scope(_.fork.pipe(f))(fa)
 
-        //todo qualify function name itself
+    def qualify(parsed: Expr[Id]): F[Expr[Id]] =
+      val recurse = qualify
+      parsed match
+        case lit: Expr.Literal[Id] => lit.pure[F]
+        case Expr.Term(name) =>
+          Scope
+            .ask[F]
+            .flatMap { scope =>
+              scope
+                .currentNames
+                .get(name)
+                // .getOrElse(Name("<unresolved>."+name.value)).pure[F]
+                .liftTo[F](Failure.Qualifying(name, scope))
+            }
+            .map(Expr.Term[Id])
 
-        // this is safe, trust me 😂
-        val qualifiedArg = Argument[Id](arguments(argument.name))
+        case Expr.FunctionDef(functionName, argument, body) =>
+          Scope.ask[F].flatMap { scope =>
+            val scopePathPrefix = scope.currentPath.reverse.toNel.fold("")(_.mkString_(".") + ".")
+            val functionNameQualified = Name(scopePathPrefix + functionName.value)
+            def functionQualified(name: Name): Name =
+                Name(s"${functionNameQualified.value}(${name.value})")
 
-        val qualifiedBodyF = recurse(body)
+            // Just in case we have more arguments later (or currying)
+            val arguments = List(argument.name).map(arg =>
+              arg -> functionQualified(arg)
+            ).toMap
 
-        (
-          functionNameQualified.pure[F],
-          qualifiedArg.pure[F],
-          qualifiedBodyF
-        )
-          .mapN(Expr.FunctionDef[Id].apply)
-          .scope(_.fork.addNames(functionKnownName ++ arguments).addPath(functionName.value))
-        }
+            val functionKnownName = Map(functionName -> functionNameQualified)
 
-    case Expr.Apply(on, param) =>
-      (
-        recurse(on),
-        recurse(param)
-      ).mapN(Expr.Apply.apply)
+            //todo qualify function name itself
 
-    // At every block, we go through all the top-level nodes
-    // and see if they introduce new symbols. This would be the case for function or constant definitions.
-    // If they do, we qualify them here, and create a "virtual" scope for the entire block.
-    // This allows functions in a block to see each other, including mutual recursion.
-    // todo: deduplicate this with the usual qualification of functions above
-    case Expr.Block(nodes) =>
-      // todo: add path element for block? Probably have to come up with synthetic IDs at this point
-      nodes
-        .traverse(prequalify)
-        .map(_.toList.flatten.toMap)
-        .flatMap { names =>
+            // this is safe, trust me 😂
+            val qualifiedArg = Argument[Id](arguments(argument.name))
+
+            val qualifiedBodyF = recurse(body)
+
+            (
+              functionNameQualified.pure[F],
+              qualifiedArg.pure[F],
+              qualifiedBodyF
+            )
+              .mapN(Expr.FunctionDef[Id].apply)
+              .withForkedScope(_.addNames(functionKnownName ++ arguments).addPath(functionName.value))
+            }
+
+        case Expr.Apply(on, param) =>
+          (
+            recurse(on),
+            recurse(param)
+          ).mapN(Expr.Apply.apply)
+
+        // At every block, we go through all the top-level nodes
+        // and see if they introduce new symbols. This would be the case for function or constant definitions.
+        // If they do, we qualify them here, and create a "virtual" scope for the entire block.
+        // This allows functions in a block to see each other, including mutual recursion.
+        // todo: deduplicate this with the usual qualification of functions above
+        case Expr.Block(nodes) =>
+          // todo: add path element for block? Probably have to come up with synthetic IDs at this point
           nodes
-            .traverse(recurse)
-            .scope(_.fork.addNames(names))
-        }.map(Expr.Block(_))
+            .traverse(prequalify)
+            .map(_.toList.flatten.toMap)
+            .flatMap { names =>
+              nodes
+                .traverse(recurse)
+                .withForkedScope(_.addNames(names))
+            }.map(Expr.Block(_))
 
+    end qualify
 
-end qualify0
+    private def prequalify: Expr[Id] => F[Map[Name, Name]] =
+      case Expr.FunctionDef(functionName, _, _) =>
+        Scope.ask[F].map { scope =>
+          // note: these two lines have been copied verbatim from the functiondef case in qualify0
+          // this must be deduplicated (ideally names will be ADTs with scope options)
+          val scopePathPrefix = scope.currentPath.reverse.toNel.fold("")(_.mkString_(".") + ".")
+          val functionNameQualified = Name(scopePathPrefix + functionName.value)
+          Map(functionName -> functionNameQualified)
+        }
 
-private def prequalify[F[_]: Scoped.Of[Scope]: Applicative]: Expr[Id] => F[Map[Name, Name]] =
-  case Expr.FunctionDef(functionName, _, _) =>
-    Scope.ask[F].map { scope =>
-      // note: these two lines have been copied verbatim from the functiondef case in qualify0
-      // this must be deduplicated (ideally names will be ADTs with scope options)
-      val scopePathPrefix = scope.currentPath.reverse.toNel.fold("")(_.mkString_(".") + ".")
-      val functionNameQualified = Name(scopePathPrefix + functionName.value)
-      Map(functionName -> functionNameQualified)
-    }
+      case _ =>
+        // Not supporting any other means of introducing symbols in blocks yet
+        Map.empty.pure[F]
 
-  case _ =>
-    // Not supporting any other means of introducing symbols in blocks yet
-    Map.empty.pure[F]
+  end scopedInstance
+
+end Qualifier
+
 
 trait Scoped[F[_], S]:
   def ask: F[S]
   def scope[A](f: S => S)(fa: F[A]): F[A]
-
-  extension[A](fa: F[A])
-    def scope(f: S => S): F[A] = Scoped.this.scope(f)(fa)
 
 object Scoped:
   def apply[F[_], S](using Scoped[F, S]): Scoped[F, S] = summon
