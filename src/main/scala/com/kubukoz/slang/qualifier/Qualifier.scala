@@ -8,8 +8,9 @@ import cats.data.Chain
 import cats.data.Kleisli
 import com.kubukoz.slang.ast._
 import cats.implicits._
+import cats.effect.std.Console
 
-def qualify[F[_]](parsed: Expr[Id])(using MonadError[F, Throwable]): F[Expr[Id]] =
+def qualify[F[_]: Console](parsed: Expr[Id])(using MonadError[F, Throwable]): F[Expr[Id]] =
   qualify0[StateT[F, Scope, *]](parsed)
     .runA(Scope.root)
 
@@ -104,6 +105,7 @@ private def prequalify[F[_]: Scoped.Of[Scope]: Applicative]: Expr[Id] => F[Map[N
 trait Scoped[F[_], S]:
   def ask: F[S]
   def scope[A](f: S => S)(fa: F[A]): F[A]
+
   extension[A](fa: F[A])
     def scope(f: S => S): F[A] = Scoped.this.scope(f)(fa)
 
@@ -111,11 +113,18 @@ object Scoped:
   def apply[F[_], S](using Scoped[F, S]): Scoped[F, S] = summon
   type Of[S] = [F[_]] =>> Scoped[F, S]
 
-  given [F[_], E, S](using MonadError[F, E]): Scoped[StateT[F, S, *], S] = new Scoped[StateT[F, S, *], S]:
+  given [F[_]: Console, E, S: Debug: Depth](using MonadError[F, E], SlangFlags): Scoped[StateT[F, S, *], S] = new Scoped[StateT[F, S, *], S]:
+    given M: Monad[StateT[F, S, *]] = summon
+
     def ask: StateT[F, S, S] = StateT.get
+
     def scope[A](f: S => S)(fa: StateT[F, S, A]): StateT[F, S, A] = StateT { state =>
-      fa
-        .runA(f(state))
+      def indent(s: S) = " " * s.depth * 2
+
+      val forked = f(state)
+
+      Console[F].println(s"${indent(forked)}${forked.debug}").ifDebugM *>
+        fa.runA(forked)
         .map(state -> _)
     }
 
@@ -151,3 +160,32 @@ object Scope:
   val root: Scope = Scope(Nil, Map.empty, Nil)
   def ask[F[_]](using Scoped[F, Scope]): F[Scope] = Scoped[F, Scope].ask
 
+  given Debug[Scope] = scope =>
+    val colors = List[scala.Console.type => String](
+      _.MAGENTA,
+      _.BLUE,
+      _.GREEN,
+      _.CYAN,
+      _.WHITE
+    )
+
+    def inColor(level: Int)(s: String) = colors(level % colors.size)(scala.Console) ++ s ++ scala.Console.RESET
+
+    inColor(scope.depth)(
+      s"scope @ ${scope.currentPath.reverse.mkString(".")}: symbols ${scope.currentLocalNames.keySet.map(_.value).mkString(", ")}"
+    )
+
+  given Depth[Scope] = _.parents.size
+
+
+trait Debug[A]:
+  extension(a: A) def debug: String
+
+trait Depth[A]:
+  extension(a: A) def depth: Int
+
+final case class SlangFlags(debug: Boolean):
+  extension[F[_], A](fa: F[A]) def ifDebugM(using Applicative[F]): F[Unit] = fa.whenA(debug)
+
+object SlangFlags:
+  given global: SlangFlags = SlangFlags(true)

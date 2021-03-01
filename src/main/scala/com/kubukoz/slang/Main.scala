@@ -28,11 +28,11 @@ object Main extends IOApp.Simple:
         .flatMap(qualifier.qualify(_))
         .flatTap(result => IO.println("Qualified program: " ++ result.toString))
         // .flatTap(result => IO(println(result.asJson.noSpaces)))
-        .flatMap { expr =>
-          IO.println("\n\nProgram output: ") *>
-            Interpreter.instance[StateT[IO, interpreter.Scope, *]].run(expr).runS(interpreter.Scope.init)
-        }
-        .flatMap(result => IO.println("\n\nFinal scope: " ++ result.toString))
+        // .flatMap { expr =>
+        //   IO.println("\n\nProgram output: ") *>
+        //     Interpreter.instance[StateT[IO, interpreter.Scope, *]].run(expr).runS(interpreter.Scope.init)
+        // }
+        // .flatMap(result => IO.println("\n\nFinal scope: " ++ result.toString))
         .handleErrorWith {
           case Failure.Parsing(t) => IO.println(parser.prettyPrint("example.s", source, t))
           case Failure.Qualifying(name, scope) => IO.println(
