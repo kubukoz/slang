@@ -20,32 +20,45 @@ trait Qualifier[F[_]]:
 
 object Qualifier:
   def apply[F[_]](using Qualifier[F]): Qualifier[F] = summon
+
   given[F[_]: FlatMap](using Q: Qualifier[StateT[F, Scope, *]]): Qualifier[F] =
     parsed => Q.qualify(parsed).runA(Scope.root)
 
-  def scopedInstance[F[_]: Console](using MonadError[F, Throwable], Scoped[F, Scope]): Qualifier[F] = new Qualifier[F]:
+  def scopedInstance[F[_]: Console](using MonadError[F, Throwable], Scoped[F, Scope], SlangFlags): Qualifier[F] = new Qualifier[F]:
 
+    def useScope[A](f: Scope => F[A]): F[A] = Scope.ask[F].flatMap(f)
     extension[A](fa: F[A])
-      def withForkedScope(f: Scope => Scope): F[A] = Scoped[F, Scope].scope(_.fork.pipe(f))(fa)
+      def withForkedScope(f: Scope => Scope): F[A] =
+
+        val mkForkScope: F[Scope] =
+          useScope(_.pure)
+            .map(_.fork.pipe(f))
+            .flatTap { forked =>
+              val indent = " " * forked.depth * 2
+
+              Console[F].println(s"$indent${forked.debug}").ifDebugM
+            }
+
+        Scoped[F, Scope].scope(fa) {
+          mkForkScope
+        }
 
     def qualify(parsed: Expr[Id]): F[Expr[Id]] =
       val recurse = qualify
       parsed match
         case lit: Expr.Literal[Id] => lit.pure[F]
         case Expr.Term(name) =>
-          Scope
-            .ask[F]
-            .flatMap { scope =>
-              scope
-                .currentNames
-                .get(name)
-                // .getOrElse(Name("<unresolved>."+name.value)).pure[F]
-                .liftTo[F](Failure.Qualifying(name, scope))
-            }
-            .map(Expr.Term[Id])
+          useScope { scope =>
+            scope
+              .currentNames
+              .get(name)
+              // .getOrElse(Name("<unresolved>."+name.value)).pure[F]
+              .liftTo[F](Failure.Qualifying(name, scope))
+          }
+          .map(Expr.Term[Id])
 
         case Expr.FunctionDef(functionName, argument, body) =>
-          Scope.ask[F].flatMap { scope =>
+          useScope { scope =>
             val scopePathPrefix = scope.currentPath.reverse.toNel.fold("")(_.mkString_(".") + ".")
             val functionNameQualified = Name(scopePathPrefix + functionName.value)
             def functionQualified(name: Name): Name =
@@ -119,25 +132,22 @@ end Qualifier
 
 trait Scoped[F[_], S]:
   def ask: F[S]
-  def scope[A](f: S => S)(fa: F[A]): F[A]
+  // Note: forkScope can *not* modify the state itself, it only produces it!
+  // Even if the state is modified, we will set it again in the implementations.
+  def scope[A](fa: F[A])(forkScope: F[S]): F[A]
 
 object Scoped:
   def apply[F[_], S](using Scoped[F, S]): Scoped[F, S] = summon
   type Of[S] = [F[_]] =>> Scoped[F, S]
 
-  given [F[_]: Console, E, S: Debug: Depth](using MonadError[F, E], SlangFlags): Scoped[StateT[F, S, *], S] = new Scoped[StateT[F, S, *], S]:
-    given M: Monad[StateT[F, S, *]] = summon
+  given [F[_]: Console, E, S](using MonadError[F, E]): Scoped[StateT[F, S, *], S] = new Scoped[StateT[F, S, *], S]:
 
-    def ask: StateT[F, S, S] = StateT.get
+    val ask: StateT[F, S, S] = StateT.get
 
-    def scope[A](f: S => S)(fa: StateT[F, S, A]): StateT[F, S, A] = StateT { state =>
-      def indent(s: S) = " " * s.depth * 2
-
-      val forked = f(state)
-
-      Console[F].println(s"${indent(forked)}${forked.debug}").ifDebugM *>
-        fa.runA(forked)
-        .map(state -> _)
+    def scope[A](fa: StateT[F, S, A])(forkScope: StateT[F, S, S]): StateT[F, S, A] = StateT.get[F, S].flatMap { state =>
+      StateT.liftF(
+        (forkScope.flatMap(StateT.set) *> fa).runA(state)
+      )
     }
 
 case class Scope(
@@ -168,11 +178,7 @@ case class Scope(
     currentPath = element :: currentPath
   )
 
-object Scope:
-  val root: Scope = Scope(Nil, Map.empty, Nil)
-  def ask[F[_]](using Scoped[F, Scope]): F[Scope] = Scoped[F, Scope].ask
-
-  given Debug[Scope] = scope =>
+  def debug: String =
     val colors = List[scala.Console.type => String](
       _.MAGENTA,
       _.BLUE,
@@ -183,18 +189,16 @@ object Scope:
 
     def inColor(level: Int)(s: String) = colors(level % colors.size)(scala.Console) ++ s ++ scala.Console.RESET
 
-    inColor(scope.depth)(
-      s"scope @ ${scope.currentPath.reverse.mkString(".")}: symbols ${scope.currentLocalNames.keySet.map(_.value).mkString(", ")}"
+    inColor(depth)(
+      s"scope @ ${this.currentPath.reverse.mkString(".")}: symbols ${this.currentLocalNames.keySet.map(_.value).mkString(", ")}"
     )
 
-  given Depth[Scope] = _.parents.size
+  def depth: Int = parents.size
 
 
-trait Debug[A]:
-  extension(a: A) def debug: String
-
-trait Depth[A]:
-  extension(a: A) def depth: Int
+object Scope:
+  val root: Scope = Scope(Nil, Map.empty, Nil)
+  def ask[F[_]](using Scoped[F, Scope]): F[Scope] = Scoped[F, Scope].ask
 
 final case class SlangFlags(debug: Boolean):
   extension[F[_], A](fa: F[A]) def ifDebugM(using Applicative[F]): F[Unit] = fa.whenA(debug)
