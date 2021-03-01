@@ -44,7 +44,6 @@ object Qualifier:
         }
 
     def qualify(parsed: Expr[Id]): F[Expr[Id]] =
-      val recurse = qualify
       parsed match
         case lit: Expr.Literal[Id] => lit.pure[F]
         case Expr.Term(name) =>
@@ -76,7 +75,7 @@ object Qualifier:
             // this is safe, trust me 😂
             val qualifiedArg = Argument[Id](arguments(argument.name))
 
-            val qualifiedBodyF = recurse(body)
+            val qualifiedBodyF = qualify(body)
 
             (
               functionNameQualified.pure[F],
@@ -89,8 +88,8 @@ object Qualifier:
 
         case Expr.Apply(on, param) =>
           (
-            recurse(on),
-            recurse(param)
+            qualify(on),
+            qualify(param)
           ).mapN(Expr.Apply.apply)
 
         // At every block, we go through all the top-level nodes
@@ -105,7 +104,7 @@ object Qualifier:
             .map(_.toList.flatten.toMap)
             .flatMap { names =>
               nodes
-                .traverse(recurse)
+                .traverse(qualify)
                 .withForkedScope(_.addNames(names))
             }.map(Expr.Block(_))
 
