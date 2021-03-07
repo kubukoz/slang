@@ -8,7 +8,7 @@ import cats.effect.std.Console
 import cats.data.StateT
 import com.kubukoz.slang.ast._
 import cats.implicits._
-import com.kubukoz.slang.qualifier.Scoped
+import com.kubukoz.slang.core.Scoped
 
 trait Interpreter[F[_]]:
   def run(program: Expr[Id]): F[Unit]
