@@ -40,7 +40,7 @@ object Main extends IOApp.Simple:
             // todo2: non-fatal errors anyone? we'll need this for the language server
             s"""Can't resolve name: ${name.value}
                |In scope:
-               |${scope.currentPath.reverse.mkString_(".")}
+               |${scope.renderPath.orEmpty}
                |Current names:
                |${scope.currentNames.map { (k, v) => s"${k.value} -> ${v.value}" }.mkString("\n")}""".stripMargin
           )

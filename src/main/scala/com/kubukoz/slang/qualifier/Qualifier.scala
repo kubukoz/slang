@@ -38,9 +38,7 @@ object Qualifier extends Summon1[Qualifier]:
           .map(Expr.Term[Id])
 
         case Expr.FunctionDef(functionName, argument, body) =>
-          Scope.Ops[F].useScope { scope =>
-            val scopePathPrefix = scope.currentPath.reverse.toNel.fold("")(_.mkString_(".") + ".")
-            val functionNameQualified = Name(scopePathPrefix + functionName.value)
+          Scope.Ops[F].qualify(functionName).flatMap { functionNameQualified =>
             def functionQualified(name: Name): Name =
                 Name(s"${functionNameQualified.value}(${name.value})")
 
@@ -50,8 +48,6 @@ object Qualifier extends Summon1[Qualifier]:
             ).toMap
 
             val functionKnownName = Map(functionName -> functionNameQualified)
-
-            //todo qualify function name itself
 
             // this is safe, trust me 😂
             val qualifiedArg = Argument[Id](arguments(argument.name))
@@ -93,12 +89,10 @@ object Qualifier extends Summon1[Qualifier]:
 
     private def prequalify: Expr[Id] => F[Map[Name, Name]] =
       case Expr.FunctionDef(functionName, _, _) =>
-        Scope.Ops[F].useScope { scope =>
-          // note: these two lines have been copied verbatim from the functiondef case in qualify0
+        Scope.Ops[F].qualify(functionName).map { functionNameQualified =>
+          // note: copied verbatim from the functiondef case in qualify0
           // this must be deduplicated (ideally names will be ADTs with scope options)
-          val scopePathPrefix = scope.currentPath.reverse.toNel.fold("")(_.mkString_(".") + ".")
-          val functionNameQualified = Name(scopePathPrefix + functionName.value)
-          Map(functionName -> functionNameQualified).pure[F]
+          Map(functionName -> functionNameQualified)
         }
 
       case _ =>

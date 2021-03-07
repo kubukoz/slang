@@ -37,6 +37,8 @@ case class Scope(
     currentPath = element :: currentPath
   )
 
+  def renderPath: Option[String] = currentPath.reverse.toNel.map(_.mkString_("."))
+
   def debug: String =
     val colors = List[scala.Console.type => String](
       _.MAGENTA,
@@ -49,7 +51,7 @@ case class Scope(
     def inColor(level: Int)(s: String) = colors(level % colors.size)(scala.Console) ++ s ++ scala.Console.RESET
 
     inColor(depth)(
-      s"scope @ ${this.currentPath.reverse.mkString(".")}: symbols ${this.currentLocalNames.keySet.map(_.value).mkString(", ")}"
+      s"scope @ ${this.renderPath.orEmpty}: symbols ${this.currentLocalNames.keySet.map(_.value).mkString(", ")}"
     )
 
   def depth: Int = parents.size
@@ -59,6 +61,7 @@ object Scope:
   val root: Scope = Scope(Nil, Map.empty, Nil)
 
   trait Ops[F[_]]:
+    def qualify(name: Name): F[Name]
     def useScope[A](f: Scope => F[A]): F[A]
     extension[A](fa: F[A])
       def withForkedScope(f: Scope => Scope): F[A]
@@ -67,6 +70,10 @@ object Scope:
     def apply[F[_]](using Ops[F]): Ops[F] = summon
 
     given [F[_]: Scoped.Of[Scope]: Console: Monad](using SlangFlags): Ops[F] with
+      def qualify(name: Name): F[Name] = useScope { scope =>
+        Name(scope.renderPath.foldMap(_ ++ ".") + name.value).pure[F]
+      }
+
       def useScope[A](f: Scope => F[A]): F[A] = Scoped[F, Scope].ask.flatMap(f)
 
       extension[A](fa: F[A])
