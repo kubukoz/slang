@@ -6,6 +6,8 @@ ThisBuild / scalaVersion := "3.0.0-M3"
 ThisBuild / githubWorkflowJavaVersions := Seq(GraalVM11)
 ThisBuild / githubWorkflowPublishTargetBranches := Nil
 
+Global / onChangedBuildSource := ReloadOnSourceChanges
+
 lazy val root = (project in file(".")).settings(
   name := "slang",
   organization := "com.kubukoz",
