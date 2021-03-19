@@ -1,6 +1,8 @@
 package com.kubukoz.slang.core
 
 import cats.MonadError
+import cats.effect.IO
+import cats.effect.Local
 import cats.data.StateT
 import cats.syntax.all._
 
@@ -14,6 +16,17 @@ trait Scoped[F[_], S]:
 object Scoped:
   def apply[F[_], S](using Scoped[F, S]): Scoped[F, S] = summon
   type Of[S] = [F[_]] =>> Scoped[F, S]
+
+  def ioLocal[S](default: S): IO[Scoped[IO,S]] = Local.of(default).map { local =>
+    new Scoped[IO, S]:
+      def ask: IO[S] = local.get
+      def scope[A](fa: IO[A])(forkScope: IO[S]): IO[A] = ask.flatMap { oldScope =>
+        forkScope.bracket { newScope =>
+          local.set(newScope) *> fa
+        }(_ => local.set(oldScope))
+      }
+  }
+
 
   given [F[_], E, S](using MonadError[F, E]): Scoped[StateT[F, S, *], S] = new Scoped[StateT[F, S, *], S]:
 

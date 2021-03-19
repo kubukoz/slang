@@ -1,5 +1,3 @@
-
-
 val GraalVM11 = "graalvm-ce-java11@20.3.0"
 
 ThisBuild / scalaVersion := "3.0.0-RC1"
@@ -7,6 +5,7 @@ ThisBuild / githubWorkflowJavaVersions := Seq(GraalVM11)
 ThisBuild / githubWorkflowPublishTargetBranches := Nil
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
+ThisBuild / evictionErrorLevel := Level.Warn
 
 lazy val root = (project in file(".")).settings(
   name := "slang",
