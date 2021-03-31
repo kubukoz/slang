@@ -1,6 +1,8 @@
 package com.kubukoz.slang.core
 
 import cats.MonadError
+import cats.effect.IO
+import cats.effect.IOLocal
 import cats.data.StateT
 import cats.syntax.all._
 
@@ -15,12 +17,19 @@ object Scoped:
   def apply[F[_], S](using Scoped[F, S]): Scoped[F, S] = summon
   type Of[S] = [F[_]] =>> Scoped[F, S]
 
-  given [F[_], E, S](using MonadError[F, E]): Scoped[StateT[F, S, *], S] = new Scoped[StateT[F, S, *], S]:
+  trait Make[F[_]]:
+    def make[S](default: S): F[Scoped[F, S]]
 
-    val ask: StateT[F, S, S] = StateT.get
+  def make[F[_]: Make, S](default: S): F[Scoped[F, S]] = summon[Make[F]].make(default)
 
-    def scope[A](fa: StateT[F, S, A])(forkScope: StateT[F, S, S]): StateT[F, S, A] = StateT.get[F, S].flatMap { state =>
-      StateT.liftF(
-        (forkScope.flatMap(StateT.set) *> fa).runA(state)
-      )
+  object Make {
+    given Make[IO] with
+      def make[S](default: S): IO[Scoped[IO, S]] = IOLocal(default).map { local =>
+        new Scoped[IO, S]:
+          val ask: IO[S] = local.get
+          def scope[A](fa: IO[A])(forkScope: IO[S]): IO[A] = ask.flatMap { oldScope =>
+            forkScope.bracket(local.set(_) *> fa)(_ => local.set(oldScope))
+          }
     }
+  }
+

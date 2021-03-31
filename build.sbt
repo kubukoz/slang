@@ -1,5 +1,3 @@
-
-
 val GraalVM11 = "graalvm-ce-java11@20.3.0"
 
 ThisBuild / scalaVersion := "3.0.0-RC1"

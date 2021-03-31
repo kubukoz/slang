@@ -8,12 +8,16 @@ import cats.MonadError
 import cats.data.NonEmptyList
 import cats.data.StateT
 import cats.effect.std.Console
+import cats.effect.IO
 import com.kubukoz.slang.ast._
 import cats.syntax.all._
+import com.kubukoz.slang.core.Scoped
 
-def qualify[F[_]: Console](parsed: Expr[Id])(using MonadError[F, Throwable]): F[Expr[Id]] =
-  given Q: Qualifier[StateT[F, Scope, *]] = Qualifier.scopedInstance
-  Qualifier[F].qualify(parsed)
+def qualify[F[_]: Console: Scoped.Make](parsed: Expr[Id])(using MonadError[F, Throwable]): F[Expr[Id]] =
+  Scoped.make[F, Scope](Scope.root).flatMap { qq =>
+    given Scoped[F, Scope] = qq
+    Qualifier.scopedInstance[F].qualify(parsed)
+  }
 
 trait Qualifier[F[_]]:
   def qualify(parsed: Expr[Id]): F[Expr[Id]]
