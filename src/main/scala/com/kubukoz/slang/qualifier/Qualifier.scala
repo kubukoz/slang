@@ -13,14 +13,10 @@ import com.kubukoz.slang.ast._
 import cats.syntax.all._
 import com.kubukoz.slang.core.Scoped
 
-def qualify[F[_]: Console](parsed: Expr[Id])(using MonadError[F, Throwable]): F[Expr[Id]] =
-  given Q: Qualifier[StateT[F, Scope, *]] = Qualifier.scopedInstance
-  Qualifier[F].qualify(parsed)
-
-def qualifyIO(parsed: Expr[Id])(using Console[IO]): IO[Expr[Id]] =
-  Scoped.ioLocal(Scope.root).flatMap { qq =>
-    given Scoped[IO, Scope] = qq
-    Qualifier.scopedInstance[IO].qualify(parsed)
+def qualify[F[_]: Console: Scoped.Make](parsed: Expr[Id])(using MonadError[F, Throwable]): F[Expr[Id]] =
+  Scoped.make[F, Scope](Scope.root).flatMap { qq =>
+    given Scoped[F, Scope] = qq
+    Qualifier.scopedInstance[F].qualify(parsed)
   }
 
 trait Qualifier[F[_]]:
