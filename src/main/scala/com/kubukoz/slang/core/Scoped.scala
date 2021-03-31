@@ -17,9 +17,8 @@ object Scoped:
   def apply[F[_], S](using Scoped[F, S]): Scoped[F, S] = summon
   type Of[S] = [F[_]] =>> Scoped[F, S]
 
-  trait Make[F[_]] {
+  trait Make[F[_]]:
     def make[S](default: S): F[Scoped[F, S]]
-  }
 
   def make[F[_]: Make, S](default: S): F[Scoped[F, S]] = summon[Make[F]].make(default)
 
@@ -34,12 +33,3 @@ object Scoped:
     }
   }
 
-  given [F[_], E, S](using MonadError[F, E]): Scoped[StateT[F, S, *], S] = new Scoped[StateT[F, S, *], S]:
-
-    val ask: StateT[F, S, S] = StateT.get
-
-    def scope[A](fa: StateT[F, S, A])(forkScope: StateT[F, S, S]): StateT[F, S, A] = StateT.get[F, S].flatMap { state =>
-      StateT.liftF(
-        (forkScope.flatMap(StateT.set) *> fa).runA(state)
-      )
-    }
