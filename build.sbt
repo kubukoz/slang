@@ -17,7 +17,7 @@ lazy val root = (project in file(".")).settings(
     // we're blocked on weaver for RC1 though :(
     "com.github.julien-truffaut" %% "monocle-core" % "3.0.0-M2",
     "org.typelevel" %% "cats-effect" % "3.0.0-RC2",
-    "co.fs2" %% "fs2-io" % "3.0.0-M9",
+    "co.fs2" %% "fs2-io" % "3.0.0",
     "org.typelevel" %% "cats-parse" % "0.3.1",
     "com.disneystreaming" %% "weaver-cats" % "0.7.0-M6" % Test,
     compilerPlugin("com.kubukoz" %% "better-tostring" % "0.2.8")
