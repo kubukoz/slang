@@ -5,7 +5,6 @@ ThisBuild / githubWorkflowJavaVersions := Seq(GraalVM11)
 ThisBuild / githubWorkflowPublishTargetBranches := Nil
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
-ThisBuild / evictionErrorLevel := Level.Warn
 
 lazy val root = (project in file(".")).settings(
   name := "slang",
