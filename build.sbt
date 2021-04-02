@@ -14,7 +14,7 @@ lazy val root = (project in file(".")).settings(
     "com.github.julien-truffaut" %% "monocle-core" % "3.0.0-M3",
     "org.typelevel" %% "cats-effect" % "3.0.1",
     "co.fs2" %% "fs2-io" % "3.0.1",
-    "org.typelevel" %% "cats-parse" % "0.3.1",
+    "org.typelevel" %% "cats-parse" % "0.3.2",
     "com.disneystreaming" %% "weaver-cats" % "0.7.0-M7" % Test,
     compilerPlugin("com.kubukoz" %% "better-tostring" % "0.2.8")
   ),
