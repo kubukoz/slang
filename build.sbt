@@ -16,7 +16,7 @@ lazy val root = (project in file(".")).settings(
     "co.fs2" %% "fs2-io" % "3.0.1",
     "org.typelevel" %% "cats-parse" % "0.3.2",
     "com.disneystreaming" %% "weaver-cats" % "0.7.0-M7" % Test,
-    compilerPlugin("com.kubukoz" %% "better-tostring" % "0.2.8")
+    compilerPlugin("com.kubukoz" %% "better-tostring" % "0.2.9")
   ),
   testFrameworks += new TestFramework("weaver.framework.CatsEffect")
 )
