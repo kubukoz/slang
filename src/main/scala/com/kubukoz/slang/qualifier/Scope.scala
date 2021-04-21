@@ -16,12 +16,13 @@ case class Scope(
   //closest is on top
   parents: List[Scope]
 ):
+
   private val builtins = Map(
     "println" -> "<builtins>.println",
     "addOne" -> "<builtins>.addOne",
     "currentTime" -> "<builtins>.currentTime"
-  ).map {
-    (k, v) => Name(k) -> Name(v)
+  ).map { (k, v) =>
+    Name(k) -> Name(v)
   }
 
   def fork: Scope = copy(parents = this :: parents)
@@ -56,27 +57,27 @@ case class Scope(
 
   def depth: Int = parents.size
 
-
 object Scope:
   val root: Scope = Scope(Nil, Map.empty, Nil)
 
   trait Ops[F[_]]:
     def qualify(name: Name): F[Name]
     def useScope[A](f: Scope => F[A]): F[A]
-    extension[A](fa: F[A])
-      def withForkedScope(f: Scope => Scope): F[A]
+    extension [A](fa: F[A]) def withForkedScope(f: Scope => Scope): F[A]
 
   object Ops:
     def apply[F[_]](using Ops[F]): Ops[F] = summon
 
-    given [F[_]: Scoped.Of[Scope]: Console: Monad](using SlangFlags): Ops[F] with
+    given [F[_]: Scoped.Of[Scope]: Console: Monad](
+      using SlangFlags
+    ): Ops[F] with
       def qualify(name: Name): F[Name] = useScope { scope =>
         Name(scope.renderPath.foldMap(_ ++ ".") + name.value).pure[F]
       }
 
       def useScope[A](f: Scope => F[A]): F[A] = Scoped[F, Scope].ask.flatMap(f)
 
-      extension[A](fa: F[A])
+      extension [A](fa: F[A])
         def withForkedScope(f: Scope => Scope): F[A] =
 
           val mkForkScope: F[Scope] =

@@ -1,4 +1,5 @@
 package com.kubukoz.slang.ast
+
 import com.kubukoz.slang.ast.{Literal => AstLiteral}
 import cats.data.NonEmptyList
 import cats.Functor
