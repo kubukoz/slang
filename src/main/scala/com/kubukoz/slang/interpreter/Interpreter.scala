@@ -17,6 +17,7 @@ object Interpreter:
   def apply[F[_]](using Interpreter[F]): Interpreter[F] = summon
 
   def instance[F[_]: Scoped.Of[Scope]: Monad: Console: Clock]: Interpreter[F] = new Interpreter[F]:
+
     def run(program: Expr[Id]): F[Unit] = program match
       case f: Expr.FunctionDef[Id]     => Scoped[F, Scope].scope(Applicative[F].unit)(Scoped[F, Scope].ask.map(_.addFunction(f)))
       case Expr.Apply(function, param) =>

@@ -71,6 +71,7 @@ object Scope:
     given [F[_]: Scoped.Of[Scope]: Console: Monad](
       using SlangFlags
     ): Ops[F] with
+
       def qualify(name: Name): F[Name] = useScope { scope =>
         Name(scope.renderPath.foldMap(_ ++ ".") + name.value).pure[F]
       }

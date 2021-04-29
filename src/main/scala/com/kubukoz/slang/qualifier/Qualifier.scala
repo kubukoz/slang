@@ -24,32 +24,35 @@ trait Qualifier[F[_]]:
 
 object Qualifier extends Summon1[Qualifier]:
 
-  given[F[_]: FlatMap](using Q: Qualifier[StateT[F, Scope, *]]): Qualifier[F] =
+  given [F[_]: FlatMap](
+    using Q: Qualifier[StateT[F, Scope, *]]
+  ): Qualifier[F] =
     parsed => Q.qualify(parsed).runA(Scope.root)
 
   def scopedInstance[F[_]: Scope.Ops](using MonadError[F, Throwable]): Qualifier[F] = new Qualifier[F]:
+
     def qualify(parsed: Expr[Id]): F[Expr[Id]] =
       parsed match
         case lit: Expr.Literal[Id] => lit.pure[F]
-        case Expr.Term(name) =>
-          Scope.Ops[F].useScope { scope =>
-            scope
-              .currentNames
-              .get(name)
-              // .getOrElse(Name("<unresolved>."+name.value)).pure[F]
-              .liftTo[F](Failure.Qualifying(name, scope))
-          }
-          .map(Expr.Term[Id])
+        case Expr.Term(name)       =>
+          Scope
+            .Ops[F]
+            .useScope { scope =>
+              scope
+                .currentNames
+                .get(name)
+                // .getOrElse(Name("<unresolved>."+name.value)).pure[F]
+                .liftTo[F](Failure.Qualifying(name, scope))
+            }
+            .map(Expr.Term[Id])
 
         case Expr.FunctionDef(functionName, argument, body) =>
           Scope.Ops[F].qualify(functionName).flatMap { functionNameQualified =>
             def functionQualified(name: Name): Name =
-                Name(s"${functionNameQualified.value}(${name.value})")
+              Name(s"${functionNameQualified.value}(${name.value})")
 
             // Just in case we have more arguments later (or currying)
-            val arguments = List(argument.name).map(arg =>
-              arg -> functionQualified(arg)
-            ).toMap
+            val arguments = List(argument.name).map(arg => arg -> functionQualified(arg)).toMap
 
             val functionKnownName = Map(functionName -> functionNameQualified)
 
@@ -65,7 +68,7 @@ object Qualifier extends Summon1[Qualifier]:
             )
               .mapN(Expr.FunctionDef[Id].apply)
               .withForkedScope(_.addNames(functionKnownName ++ arguments).addPath(functionName.value))
-            }
+          }
 
         case Expr.Apply(on, param) =>
           (
@@ -87,7 +90,8 @@ object Qualifier extends Summon1[Qualifier]:
               nodes
                 .traverse(qualify)
                 .withForkedScope(_.addNames(names))
-            }.map(Expr.Block(_))
+            }
+            .map(Expr.Block(_))
 
     end qualify
 

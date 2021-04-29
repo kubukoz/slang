@@ -1,9 +1,11 @@
 package com.kubukoz.slang
+
 import com.kubukoz.slang.ast._
 import cats.Id
 
 object dsl:
-  extension(s: String)
+
+  extension (s: String)
     def of(number: 42): Expr.Apply[Id] =
       of(Expr.Literal[Id](Literal.Number(number)))
 
@@ -13,7 +15,7 @@ object dsl:
     def of(expr: Expr[Id]): Expr.Apply[Id] =
       Expr.Apply(Expr.Term(Name(s)), expr)
 
-  extension(ap: AppliedName)
+  extension (ap: AppliedName)
     def toExpr: Expr.Apply[Id] = Expr.Apply(Expr.Term(ap.on), Expr.Term(ap.arg))
     def of(anotherArg: String): Expr.Apply[Id] =
       Expr.Apply(toExpr, Expr.Term(Name(anotherArg)))

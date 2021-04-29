@@ -42,7 +42,7 @@ object parsing:
       .map(mk.tupled)
       .flatMap {
         case kw if isKeyword(kw) => Parser.failWith(s"Illegal name: ${"\""}${kw.value}${"\""} is a keyword")
-        case n => Parser.pure(n)
+        case n                   => Parser.pure(n)
       }
   }
 
@@ -61,8 +61,8 @@ object parsing:
     base: Parser[E],
     expr: Parser[Expr[F]]
   ): Parser[E | Expr.Apply[F]] =
-    (base ~ parens(expr).rep0).map {
-      (base, argLists) => argLists.foldLeft[E | Expr.Apply[F]](base)(Expr.Apply(_, _))
+    (base ~ parens(expr).rep0).map { (base, argLists) =>
+      argLists.foldLeft[E | Expr.Apply[F]](base)(Expr.Apply(_, _))
     }
 
   val singleExpression: Parser[Expr[Id]] = Parser.recursive { expr =>
@@ -80,7 +80,7 @@ object parsing:
       .surroundedBy(anyWhitespace) //trailing newlines etc.
       .map {
         case NonEmptyList(one, Nil) => one
-        case more =>
+        case more                   =>
           // implicit block
           Expr.Block(more)
       }
