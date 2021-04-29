@@ -13,7 +13,7 @@ import com.kubukoz.slang.parser.SourceFile
 object Main extends IOApp.Simple:
 
   val clear = "\u001b[2J\u001b[H"
-  val p = Paths.get("./example.s")
+  val p = Paths.get("./example.sp")
 
   import scala.concurrent.duration._
 
@@ -29,7 +29,7 @@ object Main extends IOApp.Simple:
       .evalMap { source =>
         SourceParser
           .instance[IO]
-          .parse(SourceFile("example.s", source))
+          .parse(SourceFile("example.sp", source))
           .flatTap(result => IO.println("Parsed program: " ++ result.toString))
           .flatMap(qualifier.qualify(_))
           .flatTap(result => IO.println("Qualified program: " ++ result.toString))
@@ -40,11 +40,12 @@ object Main extends IOApp.Simple:
           // }
           // .flatMap(result => IO.println("\n\nFinal scope: " ++ result.toString))
           .handleErrorWith {
-            case Failure.Parsing(t)              => IO.println(parser.prettyPrint("example.s", source, t))
+            case Failure.Parsing(t)              => IO.println(parser.prettyPrint("example.sp", source, t))
             case Failure.Qualifying(name, scope) =>
               IO.println(
                 // todo: this should also have a location and some surrounding source code
                 // todo2: non-fatal errors anyone? we'll need this for the language server
+                // shouldn't be too difficult to resolve everything to a nonexistent symbol of the Nothing type or something
                 s"""Can't resolve name: ${name.value}
                |In scope:
                |${scope.renderPath.orEmpty}
