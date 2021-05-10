@@ -105,7 +105,7 @@ object ParserTests extends SimpleIOSuite {
 
   test("can parse example") {
 
-    val srcIO = Files[IO].readAll(Paths.get("./example.s"), 4096).through(fs2.text.utf8Decode[IO]).compile.string
+    val srcIO = Files[IO].readAll(Paths.get("./example.sp"), 4096).through(fs2.text.utf8Decode[IO]).compile.string
 
     val expected = block[Id](
       "identity".of("arg").is("arg"),
