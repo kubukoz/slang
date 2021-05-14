@@ -1,5 +1,5 @@
 package com.kubukoz.slang.core
-/*
+
 import cats.MonadError
 import cats.effect.IO
 import cats.effect.IOLocal
@@ -34,4 +34,4 @@ object Scoped:
           }
       }
 
-  } */
+  }

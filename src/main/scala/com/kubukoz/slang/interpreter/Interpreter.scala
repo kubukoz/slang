@@ -1,5 +1,5 @@
 package com.kubukoz.slang.interpreter
-/*
+
 import cats.Id
 import cats.Monad
 import cats.Applicative
@@ -44,4 +44,3 @@ case class Scope(functions: List[Expr.FunctionDef[Id]]):
 
 object Scope:
   val init: Scope = Scope(Nil)
- */
