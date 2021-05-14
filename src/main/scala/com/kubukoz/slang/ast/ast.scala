@@ -3,11 +3,15 @@ package com.kubukoz.slang.ast
 import com.kubukoz.slang.ast.{Literal => AstLiteral}
 import cats.data.NonEmptyList
 import cats.Functor
+import cats.Order
 import cats.implicits._
 
 final case class Name(value: String) extends AnyVal:
   def traverse[F[_]: Functor](f: (value: String) => F[String]): F[Name] =
     f(value).map(Name(_))
+
+object Name:
+  given Order[Name] = Order.by(_.value)
 
 enum Expr[F[_]]:
   case Literal(value: F[AstLiteral])

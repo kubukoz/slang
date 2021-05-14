@@ -46,11 +46,9 @@ object Main extends IOApp.Simple:
                 // todo: this should also have a location and some surrounding source code
                 // todo2: non-fatal errors anyone? we'll need this for the language server
                 // shouldn't be too difficult to resolve everything to a nonexistent symbol of the Nothing type or something
-                s"""Can't resolve name: ${name.value}
-               |In scope:
-               |${scope.renderPath.orEmpty}
-               |Current names:
-               |${scope.currentNames.map((k, v) => s"${k.value} -> ${v.value}").mkString("\n")}""".stripMargin
+                s"""Can't resolve name: ${name.value} in scope ${scope.renderPath.orEmpty}.
+                   |Current names:
+                   |${scope.currentNames.toList.sortBy(_._1).map((k, v) => s"${k.value} -> ${v.value}").mkString("\n")}""".stripMargin
               )
           }
       }
