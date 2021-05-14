@@ -1,5 +1,5 @@
 package com.kubukoz.slang.interpreter
-
+/*
 import cats.Id
 import cats.Monad
 import cats.Applicative
@@ -35,10 +35,13 @@ object Interpreter:
       case _                           => Applicative[F].unit
 
 case class Scope(functions: List[Expr.FunctionDef[Id]]):
-  import monocle.syntax.all._
-  import monocle.Focus.focus
+  // import monocle.syntax.all._
+  // import monocle.Focus.focus
 
-  def addFunction(function: Expr.FunctionDef[Id]): Scope = this.focus(_.functions).modify(function :: _)
+  def addFunction(function: Expr.FunctionDef[Id]): Scope =
+    copy(functions = function :: functions)
+// this.focus(_.functions).modify(function :: _)
 
 object Scope:
   val init: Scope = Scope(Nil)
+ */

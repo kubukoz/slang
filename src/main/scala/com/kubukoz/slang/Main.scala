@@ -1,5 +1,5 @@
 package com.kubukoz.slang
-
+/*
 import cats.effect.IOApp
 import cats.effect.IO
 import cats.implicits._
@@ -54,3 +54,4 @@ object Main extends IOApp.Simple:
       }
       .compile
       .drain
+ */
