@@ -6,8 +6,8 @@ import cats.Applicative
 import cats.effect.Clock
 import cats.effect.std.Console
 import cats.data.StateT
-import com.kubukoz.slang.ast._
-import cats.implicits._
+import com.kubukoz.slang.ast.*
+import cats.implicits.*
 import com.kubukoz.slang.core.Scoped
 
 trait Interpreter[F[_]]:
@@ -35,7 +35,7 @@ object Interpreter:
       case _                           => Applicative[F].unit
 
 case class Scope(functions: List[Expr.FunctionDef[Id]]):
-  import monocle.syntax.all._
+  import monocle.syntax.all.*
   import monocle.Focus.focus
 
   def addFunction(function: Expr.FunctionDef[Id]): Scope =

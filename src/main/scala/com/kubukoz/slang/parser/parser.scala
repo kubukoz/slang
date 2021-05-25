@@ -8,10 +8,10 @@ import cats.parse.Parser.Expectation
 import cats.data.NonEmptyList
 import cats.Id
 import cats.MonadError
-import cats.syntax.all._
-import com.kubukoz.slang.ast._
+import cats.syntax.all.*
+import com.kubukoz.slang.ast.*
 
-import Parser._
+import Parser.*
 
 object parsing:
   val anyWhitespace = Parser.charIn(" \n\r\t").rep0

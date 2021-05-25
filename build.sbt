@@ -9,7 +9,8 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 lazy val root = (project in file(".")).settings(
   name := "slang",
   organization := "com.kubukoz",
-  scalacOptions --= Seq("-Xfatal-warnings"),
+  scalacOptions ++= Seq("-source", "future"),
+  scalacOptions -= "-Xfatal-warnings",
   libraryDependencies ++= Seq(
     "com.github.julien-truffaut" %% "monocle-core" % "3.0.0-M6",
     "org.typelevel" %% "cats-effect" % "3.1.1",

@@ -1,15 +1,15 @@
 package com.kubukoz.slang.qualifier
 
-import weaver._
-import cats.implicits._
-import com.kubukoz.slang._
-import com.kubukoz.slang.ast._
-import com.kubukoz.slang.ast.Literal._
+import weaver.*
+import cats.implicits.*
+import com.kubukoz.slang.*
+import com.kubukoz.slang.ast.*
+import com.kubukoz.slang.ast.Literal.*
 import cats.Id
 import cats.data.Chain
 import cats.effect.IO
-import scala.util.chaining._
-import dsl._
+import scala.util.chaining.*
+import dsl.*
 
 object QualifierTests extends SimpleIOSuite {
   type Result[A] = Either[Throwable, A]

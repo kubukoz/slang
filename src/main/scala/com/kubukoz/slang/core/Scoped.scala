@@ -4,7 +4,7 @@ import cats.MonadError
 import cats.effect.IO
 import cats.effect.IOLocal
 import cats.data.StateT
-import cats.syntax.all._
+import cats.syntax.all.*
 
 // A slightly more powerful mtl.Local.
 trait Scoped[F[_], S]:

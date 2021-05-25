@@ -1,10 +1,10 @@
 package com.kubukoz.slang.ast
 
-import com.kubukoz.slang.ast.{Literal => AstLiteral}
+import com.kubukoz.slang.ast.Literal as AstLiteral
 import cats.data.NonEmptyList
 import cats.Functor
 import cats.Order
-import cats.implicits._
+import cats.implicits.*
 
 final case class Name(value: String) extends AnyVal:
   def traverse[F[_]: Functor](f: (value: String) => F[String]): F[Name] =

@@ -9,8 +9,8 @@ import cats.data.NonEmptyList
 import cats.data.StateT
 import cats.effect.std.Console
 import cats.effect.IO
-import com.kubukoz.slang.ast._
-import cats.syntax.all._
+import com.kubukoz.slang.ast.*
+import cats.syntax.all.*
 import com.kubukoz.slang.core.Scoped
 
 def qualify[F[_]: Console: Scoped.Make](parsed: Expr[Id])(using MonadError[F, Throwable]): F[Expr[Id]] =

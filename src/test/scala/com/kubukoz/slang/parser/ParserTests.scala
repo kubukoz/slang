@@ -1,19 +1,20 @@
 package com.kubukoz.slang.parser
 
-import weaver._
-import cats.implicits._
-import com.kubukoz.slang._
-import com.kubukoz.slang.ast.{Literal => LLiteral, _}
-import com.kubukoz.slang.ast.Expr._
-import com.kubukoz.slang.ast.Literal._
+import weaver.*
+import cats.implicits.*
+import com.kubukoz.slang.*
+import com.kubukoz.slang.ast.Literal as LLiteral
+import com.kubukoz.slang.ast.Expr
+import com.kubukoz.slang.ast.Expr.*
+import com.kubukoz.slang.ast.Literal.*
 import cats.Id
 import cats.effect.IO
-import dsl._
-import fs2.io.file._
+import dsl.*
+import fs2.io.file.*
 import java.nio.file.Paths
 
 object ParserTests extends SimpleIOSuite {
-  import parsing.parser.{parseAll => parse}
+  import parsing.parser.parseAll as parse
 
   // might be unused, but keep it there as a utility
   def parsePretty(text: String): Either[String, Expr[Id]] =

@@ -1,6 +1,6 @@
 package com.kubukoz.slang
 
-import com.kubukoz.slang.ast._
+import com.kubukoz.slang.ast.*
 import cats.Id
 
 object dsl:

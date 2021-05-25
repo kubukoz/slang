@@ -2,7 +2,7 @@ package com.kubukoz.slang
 
 import cats.effect.IOApp
 import cats.effect.IO
-import cats.implicits._
+import cats.implicits.*
 import java.nio.file.Paths
 import fs2.io.file.Files
 import cats.data.StateT
@@ -15,7 +15,7 @@ object Main extends IOApp.Simple:
   val clear = "\u001b[2J\u001b[H"
   val p = Paths.get("./example.sp")
 
-  import scala.concurrent.duration._
+  import scala.concurrent.duration.*
 
   val sources =
     fs2

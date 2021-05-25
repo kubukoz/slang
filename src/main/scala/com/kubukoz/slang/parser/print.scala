@@ -5,7 +5,7 @@ import cats.parse.Numbers
 import cats.parse.LocationMap
 import cats.parse.Parser.Expectation
 import cats.data.NonEmptyList
-import cats.syntax.all._
+import cats.syntax.all.*
 
 def prettyPrint(fileName: String, source: String, e: Parser.Error): String =
   //uber hack - apparently reset doesn't work after a newline... so we're printing the newline after resetting.

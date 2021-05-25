@@ -1,13 +1,13 @@
 package com.kubukoz.slang.qualifier
 
-import com.kubukoz.slang._
+import com.kubukoz.slang.*
 import com.kubukoz.slang.config.SlangFlags
 import com.kubukoz.slang.core.Scoped
 import cats.Monad
 import com.kubukoz.slang.ast.Name
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.effect.std.Console
-import scala.util.chaining._
+import scala.util.chaining.*
 
 case class Scope(
   //closest on top
