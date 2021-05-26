@@ -6,7 +6,6 @@ import cats.Id
 import cats.FlatMap
 import cats.MonadError
 import cats.data.NonEmptyList
-import cats.data.StateT
 import cats.effect.std.Console
 import cats.effect.IO
 import com.kubukoz.slang.ast.*
@@ -23,11 +22,6 @@ trait Qualifier[F[_]]:
   def qualify(parsed: Expr[Id]): F[Expr[Id]]
 
 object Qualifier extends Summon1[Qualifier]:
-
-  given [F[_]: FlatMap](
-    using Q: Qualifier[StateT[F, Scope, *]]
-  ): Qualifier[F] =
-    parsed => Q.qualify(parsed).runA(Scope.root)
 
   def scopedInstance[F[_]: Scope.Ops](using MonadError[F, Throwable]): Qualifier[F] = new Qualifier[F]:
 
