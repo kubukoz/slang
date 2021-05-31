@@ -56,6 +56,7 @@ case class Scope(
     )
 
   def depth: Int = parents.size
+end Scope
 
 object Scope:
   val root: Scope = Scope(Nil, Map.empty, Nil)
@@ -95,3 +96,5 @@ object Scope:
           }
 
         end withForkedScope
+  end Ops
+end Scope

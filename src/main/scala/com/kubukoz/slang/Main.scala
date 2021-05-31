@@ -54,3 +54,4 @@ object Main extends IOApp.Simple:
       }
       .compile
       .drain
+end Main
