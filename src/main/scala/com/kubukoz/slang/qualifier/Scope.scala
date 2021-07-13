@@ -80,6 +80,7 @@ object Scope:
       def useScope[A](f: Scope => F[A]): F[A] = Scoped[F, Scope].ask.flatMap(f)
 
       extension [A](fa: F[A])
+
         def withForkedScope(f: Scope => Scope): F[A] =
 
           val mkForkScope: F[Scope] =
@@ -96,5 +97,7 @@ object Scope:
           }
 
         end withForkedScope
+
   end Ops
+
 end Scope
