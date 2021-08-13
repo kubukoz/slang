@@ -10,7 +10,6 @@ import cats.Id
 import cats.MonadError
 import cats.syntax.all.*
 import com.kubukoz.slang.ast.*
-
 import Parser.*
 
 object parsing:
