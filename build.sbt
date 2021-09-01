@@ -12,7 +12,7 @@ lazy val root = (project in file(".")).settings(
   scalacOptions ++= Seq("-source", "future"),
   scalacOptions -= "-Xfatal-warnings",
   libraryDependencies ++= Seq(
-    "dev.optics" %% "monocle-core" % "3.0.0",
+    "dev.optics" %% "monocle-core" % "3.1.0",
     "org.typelevel" %% "cats-effect" % "3.1.1",
     "co.fs2" %% "fs2-io" % "3.0.6",
     "org.typelevel" %% "cats-parse" % "0.3.4",
