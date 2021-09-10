@@ -14,7 +14,7 @@ lazy val root = (project in file(".")).settings(
   libraryDependencies ++= Seq(
     "dev.optics" %% "monocle-core" % "3.0.0",
     "org.typelevel" %% "cats-effect" % "3.1.1",
-    "co.fs2" %% "fs2-io" % "3.0.6",
+    "co.fs2" %% "fs2-io" % "3.1.2",
     "org.typelevel" %% "cats-parse" % "0.3.4",
     "com.disneystreaming" %% "weaver-cats" % "0.7.6" % Test,
     compilerPlugin("com.kubukoz" % "better-tostring" % "0.3.6" cross CrossVersion.full)
