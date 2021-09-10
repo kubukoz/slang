@@ -21,6 +21,7 @@ object dsl:
       Expr.Apply(toExpr, Expr.Term(Name(anotherArg)))
 
     def is(body: String): Expr.FunctionDef[Id] = is(Expr.Term[Id](Name(body)))
+
     def is(body: Expr[Id]): Expr.FunctionDef[Id] = Expr.FunctionDef(
       ap.on,
       Argument(ap.arg),
