@@ -58,7 +58,7 @@ object QualifierTests extends SimpleIOSuite {
     )
   }
 
-  //todo: prop test candidate
+  // todo: prop test candidate
   test("single elem block") {
     simpleQualifierTest(
       Expr.block(
