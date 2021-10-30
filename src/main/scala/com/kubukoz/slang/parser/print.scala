@@ -8,7 +8,7 @@ import cats.data.NonEmptyList
 import cats.syntax.all.*
 
 def prettyPrint(fileName: String, source: String, e: Parser.Error): String =
-  //uber hack - apparently reset doesn't work after a newline... so we're printing the newline after resetting.
+  // uber hack - apparently reset doesn't work after a newline... so we're printing the newline after resetting.
   def colorize(color: String)(text: String) =
     text.linesWithSeparators.map(s => color ++ s.dropRight(1) ++ Console.RESET ++ s.takeRight(1)).mkString
 

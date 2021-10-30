@@ -15,7 +15,7 @@ import Parser.*
 
 object parsing:
   val anyWhitespace = Parser.charIn(" \n\r\t").rep0
-  //todo naming of these white parsers
+  // todo naming of these white parsers
   val whitespaceChar = Parser.charIn(" \t")
   val whitespace = whitespaceChar.rep0.void
   def token[A](a: Parser[A]): Parser[A] = a.surroundedBy(whitespace)
@@ -77,7 +77,7 @@ object parsing:
   val parser: Parser[Expr[Id]] =
     singleExpression
       .repSep(sep = charIn("\n;").rep)
-      .surroundedBy(anyWhitespace) //trailing newlines etc.
+      .surroundedBy(anyWhitespace) // trailing newlines etc.
       .map {
         case NonEmptyList(one, Nil) => one
         case more                   =>

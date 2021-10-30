@@ -10,10 +10,10 @@ import cats.effect.std.Console
 import scala.util.chaining.*
 
 case class Scope(
-  //closest on top
+  // closest on top
   currentPath: List[String],
   currentLocalNames: Map[Name, Name],
-  //closest is on top
+  // closest is on top
   parents: List[Scope]
 ):
 
